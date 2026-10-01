@@ -36,7 +36,7 @@ For any frontend project (Next.js or Astro), write real Playwright specs for the
 
 **UI changes need screenshots, not just green tests.** For anything visually meaningful, produce screenshots at both viewports and every relevant state (signed in/out, error, pending, empty) — via `page.screenshot` in a throwaway script if nothing else — and hand back their paths. If the change renders on more than one route, screenshot each route. Green assertions plus a screenshot that "looks wrong" is a failing verification; say so.
 
-**Known environment limitation:** in this environment, this agent has repeatedly had no working Bash/shell tool despite it being declared in this file's tool list — confirmed by direct testing, not assumed. **Don't assume this is fixed** — try running one trivial command (e.g. `npx --version`) first. If Bash genuinely isn't available: still author the Playwright spec files (that's real, reviewable work), then explicitly hand back to the orchestrator that the tests exist but need to be run externally (`npx playwright test`) — never claim or imply the suite passed without having actually executed it yourself.
+**If your shell doesn't work** (it has varied between sessions — try one trivial command first), still write the specs, then say plainly that they exist but haven't been run. Never imply a suite passed that you didn't execute.
 
 ## Verifying a change is actually done
 
@@ -44,3 +44,12 @@ For any frontend project (Next.js or Astro), write real Playwright specs for the
 - If there's a way to exercise the feature directly (dev server, CLI, script), do it rather than trusting the code reading.
 - Report honestly: if you found gaps you didn't close (time, access, flaky infra), say exactly what's untested and why, rather than implying full coverage.
 - Test code deserves the same rigor as production code — the `clean-code` skill applies to tests too.
+
+## What you report back
+
+Your final message is all the orchestrator sees, and it re-checks what you claim. Use this shape:
+
+- **Changed** — files written or modified, grouped by area.
+- **Verified** — each command or check you ran, with its actual result. List anything you could not run and why (e.g. no working shell); never imply a check passed that didn't run.
+- **Deviations** — where you departed from the brief or spec, and why.
+- **Needs the user** — only questions that are genuinely theirs to decide. Make the other calls yourself and list them under Deviations.

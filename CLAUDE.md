@@ -1,231 +1,110 @@
 # Engineering standards
 
-These apply across all projects unless a project's own CLAUDE.md overrides them.
+These apply across all projects unless a project's own CLAUDE.md overrides them. Each rule is stated once; agents and project files point here rather than restating it.
 
 ## Default stack
 
-- **Web frontend (apps):** Next.js + React, TypeScript
-- **Web frontend (static/marketing sites):** Astro 5 + Tailwind CSS — landing pages, docs sites, blogs, and other content-first sites with no real client-side state or auth. Ship minimal JS by default (Astro's islands architecture); mount a UI framework (React/Vue/Svelte) as an island only for the specific components that genuinely need interactivity (a language toggle, a copy-button, a live-fetched badge), not for the whole page.
-- **Mobile:** Flutter, Dart
-- **BFF (Backend-for-Frontend):** Fastify, Node.js, TypeScript — a thin per-client-surface layer (web BFF, mobile BFF) that aggregates/shapes responses from internal APIs/microservices and translates external auth/session into internal calls. No business logic and no database of its own beyond a thin cache.
-- **APIs / Microservices:** Fastify, Node.js, TypeScript — same framework as the BFF, but each service owns one bounded context, its own business logic, and its own database. Services never reach into another service's database directly.
-- **Database:** MongoDB — one logical database per service/bounded context, no cross-service schema sharing.
-- **Queues & background jobs:** BullMQ + Redis — asynchronous work, retries/backoff, scheduled jobs, and decoupling slow operations from the request/response cycle.
-- **Edge & WAF:** Cloudflare — DNS, WAF rules, edge caching/CDN, and DDoS mitigation in front of every public-facing app and API.
+- **Web apps:** Next.js + React, TypeScript.
+- **Static/marketing sites** (landing pages, docs, blogs — no real client state or auth): Astro 5 + Tailwind CSS, minimal JS, a UI-framework island only for the specific component that needs interactivity.
+- **Mobile:** Flutter, Dart.
+- **BFF:** Fastify + TypeScript — a thin per-client layer that shapes/aggregates responses and translates auth/session. No business logic, no database beyond a thin cache.
+- **APIs / microservices:** Fastify + TypeScript — each owns one bounded context, its logic, and its own database. Never reach into another service's database.
+- **Database:** MongoDB, one logical database per service.
+- **Queues & background jobs:** BullMQ + Redis.
+- **Edge & WAF:** Cloudflare in front of every public app and API.
 
-Don't force this stack onto a project that already uses something else — match what's there.
+Match what an existing project already uses instead of forcing this stack on it.
 
-**Choosing between Next.js and Astro for a new frontend:** if the project has real client-side state, auth, a dashboard/data-heavy UI, or will keep growing into a full product, use Next.js/React. If it's fundamentally a static or content-driven site — a landing page, marketing site, docs site, blog — default to Astro + Tailwind instead, even though it isn't the "web app" default above.
+- **Next.js or Astro?** Real client state, auth, a data-heavy UI, or a product that will keep growing → Next.js. Fundamentally static or content-driven → Astro.
+- **BFF or direct calls?** Add a BFF when a client needs shaping/aggregation across more than one service, or a different auth/session model. A single client talking to a single service doesn't need one yet.
 
-**BFF vs. calling APIs/microservices directly:** default to a BFF when a client (web or mobile) needs response shaping/aggregation across more than one backend service, or a different auth/session model than the backend services use internally. Skip the BFF for a project with a single client and a single service — don't add the layer speculatively before the multi-client or multi-service complexity actually exists.
+**Stack conventions live with the agent that implements them:** Next.js, Astro and Flutter in `~/.claude/agents/frontend-engineer.md`; Fastify, BFF, MongoDB and BullMQ in `backend-engineer.md`; Docker, Compose, CI and Cloudflare in `devops-engineer.md`. When you write code in one of those stacks yourself, read that file's conventions section first.
 
-## Design defaults
+## Design
 
-- **Mobile-first by default**, across every stack that renders UI (Next.js, Astro, Flutter web views). Design and build layouts starting from the smallest viewport and progressively enhance upward (`min-width` breakpoints), not the reverse. Only deviate when the user specifies a different priority for a specific project (e.g., an internal desktop-only dashboard). "Mobile-first" is verified, not assumed: no UI change is done until it has been looked at on a ~390px viewport as well as desktop (see Testing).
-- **Airbnb is the UX reference model** — for structure and behaviour, not only visuals: account settings hold administrative things only, anything describing the user or what the product makes for them gets its own destination, hubs link to focused pages, summary rows show the value with an explicit `Edit`, one primary action per screen, calm neutral states, little copy. A project's own docs can override this. The full version lives in the `designer` agent.
-- **Placement is decided before polish.** Where a feature lives is a design decision in its own right, made from the user's mental model rather than from which existing screen is convenient. If a screen needs copy to explain what doesn't belong on it, the structure is wrong.
+- **Mobile-first**, everywhere UI renders: build from the smallest viewport up with `min-width` breakpoints, unless the user sets a different priority for a project (e.g. a desktop-only internal tool). It's verified, not assumed — a UI change isn't done until it has been looked at at ~390px as well as desktop.
+- **Airbnb is the UX reference** for structure and behaviour, not only visuals: account settings hold administrative things only; anything describing the user or what the product makes for them gets its own destination; hubs link to focused pages; summary rows show the value with an explicit `Edit`; one primary action per screen; calm neutral states; little copy. A project's own docs can override this. The full version lives in the `designer` agent.
+- **Placement before polish.** Where a feature lives is a design decision in its own right, made from the user's mental model rather than from which existing screen is convenient. If a screen needs copy to explain what doesn't belong on it, the structure is wrong.
+- **Tokens first, components second.** Each web project defines its tokens once (Tailwind v4 `@theme`: colors, type scale, spacing, radii) and everything reads them through utility classes — no raw hex/px in components. Tokens are what transfers across surfaces (Next.js, Astro, an exported Flutter theme); React components transfer only between web apps.
+- **Shared primitives live in `src/shared/ui/`** (`Button`, `Field`, `FormErrorMessage`, brand mark…) with their own `feature_readme.md`. Feature code composes them and never hand-rolls a variant's class string. The same long `className` appearing in two files means a primitive is missing — extract it first; hand-rolled copies drift (one button's hover no longer matching its siblings').
+- Primitives and tokens are `designer`-owned decisions. Lift them into a cross-repo package only once a second web surface actually consumes them; Flutter gets the tokens, never the React package.
 
-## Design system
+## Code principles
 
-- **Tokens first, components second.** Every web project defines its design tokens once (Tailwind v4 `@theme` in the global stylesheet: colors, type scale, spacing, radii) and everything reads them through utility classes — never a raw hex/px value inside a component. The tokens are the only part of a design system that transfers to every surface (Next.js, Astro, and as an exported theme for Flutter); React components transfer only between the web apps.
-- **Shared primitives live in `src/shared/ui/`** (`Button`, `Input`/`Field`, `FormErrorMessage`, brand mark, etc.) with their own `feature_readme.md`. Feature components compose these primitives; they never hand-roll a variant's class string inline. The tell that a primitive is missing: the same 100+-character `className` appearing in more than one file. When you see that, extract the primitive first, then use it — a hand-rolled copy that drifts (e.g. one button's hover state no longer matching its siblings') is exactly the bug class this prevents.
-- **Primitives and tokens are `designer`-owned.** Adding or changing a variant, a token, or a primitive's states is a design decision that goes through `designer` first, not a frontend-engineer judgment call.
-- **Don't build the cross-repo package early.** Extract primitives inside the app as soon as duplication exists; lift them into a shared package only once a second web surface actually consumes them. Flutter never consumes the React package — it gets the tokens.
-
-## Clean Code
-
-- Small functions, one responsibility each. Extract when a function does two things, not before.
-- Names say what something is or does; no abbreviations that need decoding.
-- Guard clauses over nested conditionals. Flatten early-return chains instead of pyramids.
-- No magic numbers/strings — name them, or make it obvious from context.
-- No dead code, commented-out blocks, or speculative abstractions for hypothetical future needs.
-- Comments explain *why*, not *what*. If the code needs a comment to explain what it does, prefer renaming/restructuring first.
-
-## SOLID
-
-- **S**ingle Responsibility — a module/class/function has one reason to change. (Same idea as Clean Code's "one responsibility each," applied at the module level too.)
-- **O**pen/Closed — extend behavior by adding new code (new implementation of an interface, new handler), not by editing a working function's internals to bolt on a special case.
-- **L**iskov Substitution — an implementation of an interface must be usable anywhere the interface is expected, without the caller needing to know which implementation it got. If a repository implementation needs the caller to special-case it, the abstraction is wrong.
-- **I**nterface Segregation — depend on a narrow interface with just the methods you use, not a fat one that drags in unrelated capability.
-- **D**ependency Inversion — depend on interfaces/abstractions, not concrete implementations. This is *why* services depend on repository interfaces instead of importing the Mongo driver directly (see Clean Architecture below).
-
-## Clean Architecture
-
-- Dependency rule: inner layers (domain/business logic) never import from outer layers (frameworks, DB drivers, HTTP, UI). Outer layers depend inward, never the reverse.
-- Business logic (entities, use-cases) is framework-agnostic and unit-testable with no DB, HTTP, or UI running.
-- I/O (database, external APIs, filesystem) sits behind interfaces/ports owned by the inner layer; adapters implement them in the outer layer.
-- Controllers/routes/widgets are thin — they translate input, call a use-case, translate output. They don't hold business rules.
+- Small functions with one responsibility; extract when a function does two things, not before. Names say what something is or does.
+- Guard clauses over nested conditionals. No magic numbers or strings. No dead code, commented-out blocks, or abstractions for hypothetical needs.
+- **Comments explain why, briefly** — a few lines at most. History (which ticket, which ADR, what it replaced) belongs in the PR or ADR, not in the code, where it goes stale. Prefer renaming or restructuring over a comment that explains what code does. Don't imitate essay-length comments just because surrounding code has them.
+- SOLID, in practice: one reason to change per module; extend by adding code rather than special-casing working code; implementations substitutable without the caller knowing which it got; narrow interfaces; depend on abstractions (that's why services depend on repository interfaces, not the Mongo driver).
+- Clean Architecture: inner layers (domain, use-cases) never import outer ones (frameworks, DB drivers, HTTP, UI). Business logic is framework-agnostic and unit-testable with nothing running. I/O sits behind ports owned by the inner layer; adapters implement them. Controllers, routes and widgets are thin.
 
 ## Feature folders
 
-Organize by feature/domain, not by technical type, in every layer of every stack — `features/checkout/` (containing its components/hooks, or its routes/services/repositories, or its presentation/domain/data), not a top-level `components/`, `hooks/`, `services/`, `repositories/` that mixes unrelated features together. Shared cross-feature code goes in a `shared/` or `core/`, not the other way around. This applies to Next.js, Flutter, and Fastify alike — see each stack's section below for the concrete shape.
+Organize by feature, not technical type, in every stack — `features/checkout/` holding its own components/hooks, routes/services/repositories, or presentation/domain/data — with cross-feature code in `shared/` or `core/`. The internal layering is stack-specific (see each agent) and grows with the feature: don't add a `domain/` folder to a feature with no real domain logic yet.
 
-The internal layering within a feature folder is stack-specific, not a single universal template — Flutter uses `presentation/domain/data`, a Fastify service uses `routes/controller/service/repository` (or a stricter `ports/adapters` split, which is a valid and often better-than-default choice: separating an interface from its implementation is a stricter form of dependency inversion than a generic `data/` folder), and a Next.js feature is often just `components/hooks/lib` when there's no real domain logic to separate yet. Don't force a heavier split (e.g. a dedicated `domain/` folder) onto a feature that doesn't have enough business logic to warrant it — that's the premature-abstraction mistake Clean Code already warns against. Add structure when a feature actually grows into needing it, not by default.
-
-**Every feature folder, in every stack, gets a `feature_readme.md`** at its root: a short summary of the feature's purpose, its exposed interface (routes, use-cases, exported components/hooks — whatever the feature hands to the rest of the app), and its key data flow. Create it when the feature is first built, and update it whenever the feature changes in a way that would make the existing summary wrong or misleading — not on every commit. The point is letting an agent (or a future session) understand what a feature does and how to use it without re-reading all of its source, the same way `PLAN.md`/`ARCHITECTURE.md`/`DESIGN.md` already do at the whole-project level.
-
-## Stack conventions
-
-### Next.js / React
-- App Router, TypeScript strict mode.
-- Server Components by default; `"use client"` only where interactivity/state actually requires it.
-- Business/domain logic lives outside components (hooks, lib/, services) — components stay presentational + composition.
-- Validate all external input (forms, search params, API responses) at the boundary.
-- Feature-based folder structure over type-based (`features/checkout/` not scattered `components/`, `hooks/`, `utils/` for unrelated features).
-- **Shared layouts never re-render on client-side navigation.** Anything whose output depends on the route or the session (an auth-state header, per-route chrome) must live in a route-group segment layout (e.g. `app/(app)/layout.tsx`) that mounts/unmounts as the route changes — never in the root layout. A root layout that branches on route/session goes stale on every soft navigation (a header still showing the previous user after sign-out, or missing entirely after sign-in, until a hard reload), and no amount of `router.refresh()` fixes it.
-- After a client-side mutation that changes Server Component output (sign-in/sign-out, locale switch, a settings change), call `router.refresh()` **after** any `router.push()`, not before — the App Router's action queue discards a refresh that is still pending when a navigation is dispatched, so `refresh(); push()` is equivalent to a bare `push()`.
-- Anything that renders on more than one route (global chrome such as headers, nav, switchers) is designed with the routes' existing shells in mind — check every route it will appear on for duplicated branding or redundant controls before calling it done, not just the one you built it on.
-
-### Astro (static/marketing sites)
-- Static output by default (`output: 'static'`); only reach for SSR/hybrid rendering if the project genuinely needs a server (e.g. per-request personalization) — that's a signal it may actually belong on Next.js instead.
-- Tailwind CSS (v4 preferred) with design tokens defined once via `@theme` and reused consistently — no magic spacing/color values scattered per component.
-- Mobile-first responsive styling (see Design defaults above) — author base styles for the smallest viewport, layer breakpoints upward.
-- Feature folders still apply: organize `src/components/` by section/feature (hero, features, footer, etc.), not by technical type.
-- i18n via a plain content dictionary per locale (e.g. `src/i18n/en.ts`, `src/i18n/es.ts`) implementing one shared TypeScript interface, the same pattern as Next.js content dictionaries — keeps locales structurally guaranteed to stay in sync. Use path-based routing (`/en`, `/es`) over a client-side-only toggle when the site needs to be crawlable/shareable per language.
-- Images through Astro's built-in `astro:assets` (`sharp`) pipeline, not raw unoptimized `<img>` tags.
-- Interactivity is the exception, not the default: reach for a `client:*` island only where a component truly needs JS (language switcher, copy-to-clipboard, a live-fetched badge/counter) — keep the rest of the page static HTML.
-
-### Flutter
-- Layered like the backend: presentation (widgets + state management) → domain (entities, use-cases) → data (repositories, data sources).
-- Widgets stay dumb; business rules live in use-cases/notifiers, not in `build()`.
-- Immutable models, null safety taken seriously (no unjustified `!`).
-- Repositories abstract data sources (REST/local db) behind an interface the domain layer depends on.
-- Feature folders: `lib/features/<feature>/{presentation,domain,data}/`, each feature self-contained. Cross-feature code goes in `lib/core/` or `lib/shared/`.
-
-### Node.js + Fastify (APIs / Microservices)
-- Layering: routes → controllers (thin) → services/use-cases (business logic) → repositories (data access) → MongoDB.
-- Feature folders: one folder per feature/domain (e.g. `features/orders/{routes,controller,service,repository}.ts` or that feature's own subfolders), registered as its own Fastify plugin. Cross-feature code goes in `shared/` or `core/`.
-- Validate every route's input/output with a schema (Fastify JSON Schema or Zod) — never trust `request.body`/`params`/`query` unvalidated.
-- Use-cases don't import Fastify types; they're plain functions/classes testable without spinning up a server.
-- Centralized error handling → typed/known errors mapped to HTTP status codes in one place, not scattered `try/catch` per route.
-- Config/secrets via env vars, never hardcoded; fail fast on missing required config at startup.
-- Owns one bounded context end-to-end (business logic + its own MongoDB database). Talks to other services only through their published APIs or via a queue — never by importing another service's repository or reading its database directly.
-
-### Fastify BFF (Backend-for-Frontend)
-- Same layering discipline as a Fastify microservice (thin routes, validated schemas, centralized error handling), but the service layer here does response shaping/aggregation and auth/session translation, not domain business logic — that stays in the microservices it calls.
-- No database of its own beyond an optional thin, short-TTL cache (e.g. for aggregation results) — a BFF holding its own source-of-truth data is a sign it's actually grown into a microservice and should be re-classified/split.
-- One BFF per client surface that genuinely needs its own shaping (e.g. a web BFF and a mobile BFF), not one generic BFF trying to serve every client's shape — that reintroduces the aggregation problem it exists to solve.
-- Feature folders mirror the client's features, not the backend services' internal structure — a BFF's `features/checkout/` composes calls to whichever microservices checkout needs, it doesn't mirror a `checkout-service`'s own internals.
-
-### MongoDB
-- Repositories are the only layer that imports the Mongo driver/ODM — domain and services see plain interfaces.
-- Explicit schema validation (Mongoose schema, Zod, or JSON Schema) even though Mongo is schemaless.
-- Use projections instead of pulling full documents; index fields you query/sort on and say so in the repository (comment or migration).
-- Never build queries by interpolating unsanitized user input into query objects (NoSQL injection).
-
-### BullMQ + Redis (queues & background jobs)
-- Naming: `<domain>.<action>` (e.g. `orders.send-confirmation-email`) — consistent and greppable, same spirit as the feature-flag naming convention.
-- Feature folders: queue/worker code for a feature lives under that feature's own folder (e.g. `features/orders/jobs/`), not a top-level `jobs/`/`queues/` dumping ground mixing unrelated domains.
-- Job processors must be idempotent — a job can be retried or redelivered, so re-running it with the same payload must not double-charge, double-send, or otherwise duplicate a side effect. Use a dedupe key or an idempotency check when the underlying operation isn't naturally idempotent.
-- Set explicit `attempts` and backoff per job type based on what the job does — don't rely on BullMQ's bare defaults for something with real failure consequences (e.g. a payment webhook retry vs. a best-effort analytics ping).
-- Validate job payloads with the same rigor as HTTP input (schema/Zod) — job data isn't trusted just because it came from your own codebase; enqueue sites change over time and can drift from what the processor expects.
-- Run workers as their own process, separate from the HTTP server, for anything slow or CPU-heavy — don't process jobs inline in the API process in production.
-- Failed jobs need visibility (dead-letter queue, alerting, or a dashboard like Bull Board) — a queue that silently accumulates failed jobs is a production incident waiting to be noticed late.
-
-### Cloudflare (Edge & WAF)
-- Defense in depth, not a replacement for app-level checks: WAF rules and rate limiting at the edge complement — never substitute for — input validation, auth, and rate limiting in the Fastify services themselves.
-- Don't trust edge-supplied headers (`CF-Connecting-IP`, etc.) at the origin without verifying the request actually came through Cloudflare (allow-list Cloudflare's published IP ranges or require a shared secret header) — otherwise a client can spoof them and bypass WAF-based protections entirely.
-- Cache rules must distinguish static/cacheable routes (landing pages, static assets, public GET endpoints with no per-user data) from dynamic/authenticated responses — never cache a response containing per-user or authenticated data at the edge.
-- Keep edge-level logic (redirects, simple header rewrites, cache rules) genuinely simple; real business logic and auth decisions stay in the application, not in edge rules that are harder to test and version alongside the rest of the codebase.
+**Every feature folder has a `feature_readme.md`**: purpose, exposed interface (routes, use-cases, exported components/hooks), and key data flow. Create it with the feature; update it when it would otherwise mislead, not on every commit.
 
 ## Testing
 
-- Unit-test business logic (use-cases/domain) with no framework/DB/network involved.
-- Integration-test repositories against a real/test MongoDB instance, and routes end-to-end through Fastify's inject.
-- Integration-test BullMQ job processors against a real/test Redis instance, not a mocked queue — assert on the actual side effect the job produces, and cover the retry path (a processor that throws should leave the job retryable, not silently swallow the failure).
-- Frontend e2e (Next.js and Astro alike): Playwright for critical user flows — page loads, navigation, forms, locale/language switching, interactive components actually working — not a replacement for component-level tests, just the top of the pyramid.
-- **Playwright runs at least two projects: a desktop viewport and a mobile one** (a phone device preset or ~390px). A suite that only runs `Desktop Chrome` has never exercised the mobile-first layouts this file requires — the typical escape is a flex row that wraps at phone width and lands its actions on the wrong side. Layout assertions belong in the mobile project too, not only desktop.
-- **UI changes are not done without screenshots at both viewports** (mobile and desktop, every relevant state — signed in/out, error, pending). Whoever implements the change produces them and attaches or links them in the PR; "I didn't spin up the app" is a blocker to resolve, not a caveat to note. This applies to the orchestrator's own verification as much as to subagents — a desktop-only screenshot is half a check.
-- Don't mock what you're directly testing; don't over-mock to the point the test stops proving anything.
-- A feature isn't done until it's tested — delegate to the `qa-engineer` subagent when a change needs test coverage beyond a quick check. Note: subagent shell/Bash access has been unreliable in practice (see Subagents section) — if `qa-engineer` can't actually execute a test suite it wrote, run it yourself rather than treating unexecuted tests as verification.
+- Unit-test business logic with no framework, database or network. Integration-test repositories against a real/test MongoDB, routes through Fastify's `inject`, and BullMQ processors against a real/test Redis (including the retry path).
+- Frontend e2e: Playwright for critical flows, running **at least a desktop and a mobile (~390px) project** — a desktop-only suite has never exercised a mobile-first layout. Layout assertions belong in the mobile project too.
+- **UI changes ship with screenshots at both viewports**, for every relevant state (signed in/out, error, pending, empty), linked in the PR. Whoever implements produces them, and not having run the app is a blocker to resolve, not a caveat.
+- Don't mock what you're testing, or so much that the test proves nothing.
+- **Never accept a self-reported "tests pass".** Re-run the same commands yourself before calling work done, whether or not the subagent's shell worked.
 
 ## Subagents
 
-Specialized subagents live in `~/.claude/agents/`. **This file is standing authorization to invoke them proactively** — when a task clearly matches one of their domains, dispatch it without asking first. Don't default to doing specialist work in the main thread just because a handoff feels like overhead.
+Specialists live in `~/.claude/agents/`. This file authorizes dispatching them proactively when a task matches their domain.
 
-- **product-strategist** — turns a rough new-platform/product idea into a scoped plan: problem framing, target users, prioritized features, business model/positioning, phased roadmap. No tech stack or implementation opinions — that's what it hands to architect-engineer.
-- **frontend-engineer** — Next.js/React, Astro, or Flutter UI implementation.
-- **backend-engineer** — Fastify APIs, microservices, BFFs, MongoDB repositories, and BullMQ queues/workers.
-- **qa-engineer** — test strategy, writing tests, verifying a change actually works.
-- **architect-engineer** — design/boundary decisions, only when a change spans 2+ layers/features, introduces a new pattern, or touches shared/core code. Owns calls like BFF-vs-direct-service-access, new-microservice-vs-extend-existing, and queue-vs-synchronous-call.
-- **designer** — real UI/UX decisions (which screen a feature belongs on, new components, new layout/UX patterns, design systems), with Airbnb as the UX reference. frontend-engineer handles minor visual tweaks itself.
+- **product-strategist** — turns a new product idea into scope, users, priorities and a phased roadmap. No tech opinions.
+- **architect-engineer** — boundaries and topology when a change spans layers/features, introduces a pattern, or touches shared code (BFF vs direct, new service vs extend, queue vs sync).
+- **designer** — which screen a feature belongs on, new components, new UX patterns, design systems; Airbnb as the UX reference.
+- **frontend-engineer** / **backend-engineer** — implementation in their stacks.
+- **qa-engineer** — test strategy and verifying a change works.
+- **security-engineer** — security review and threat modelling (auth, payments, external input, data exposure, edge config).
 - **technical-writer** — READMEs, API docs, ADRs, changelogs.
-- **security-engineer** — security review, threat modeling, secure-coding guidance, including Cloudflare/WAF/edge posture and queue payload validation.
-- **devops-engineer** — Docker/Compose authoring, CI/CD pipelines, and Cloudflare configuration (DNS, WAF rules, cache rules). Implements the topology architect-engineer decided; doesn't decide it.
+- **devops-engineer** — Docker/Compose, CI/CD, Cloudflare; implements topology, doesn't decide it.
 
-Also available: the `clean-code`, `security-threat-model`, `technical-writer`, `frontend-design`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`, and `archify` skills — invoke them directly when their purpose matches the task, independent of which subagent is active. `archify` (architecture/workflow/sequence/data-flow/lifecycle diagrams as validated, self-contained HTML) is primarily for `technical-writer` (docs) and `architect-engineer` (ADRs) — its render/validate step needs a working Bash tool, so the agent authors the diagram's JSON source and the orchestrator runs the actual `archify` CLI command.
+Skills to reach for directly: `clean-code`, `security-threat-model`, `frontend-design`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`, `conventional-commit`, `archify`.
 
-**Known limitation:** subagent Bash/shell access for `frontend-engineer`, `architect-engineer`, and `qa-engineer` has been observed both working and not working across different sessions, despite Bash being declared in their tool lists in every case — it is not a stable, predictable fact, so don't assume either way going in. What matters more than which way it goes this session: **never trust a subagent's self-reported "tests pass" / "build succeeded" without re-running the same command yourself.** This applies whether or not their Bash actually worked — a subagent's summary describes what it intended to verify, not a substitute for you independently confirming it. If a subagent's Bash demonstrably doesn't work for a given task, it should say so explicitly rather than silently skipping verification or hand-authoring what a tool would have generated.
+**Briefing a subagent.** Subagents see only your prompt and their own file. Carry the context explicitly: links to the issue and docs, the literal API contract when work crosses a boundary, what's in and out of scope, and what to report. Describe the problem, not your preferred answer — for `designer` especially, a suggested solution is labelled as one hypothesis to test against alternatives, since a designer handed a placement tends to confirm it. Every agent ends with the same report shape (changed, verified, deviations, needs the user), so you don't need to restate it.
 
-### Pipeline for a new platform/product idea
+**Shell access.** Subagent Bash has worked in some sessions and not others. Don't assume either way; whatever they report, re-run the checks yourself.
 
-Distinct from the feature pipeline below — this is for a genuinely new idea, before any codebase exists to fit into.
+### New product idea
 
-1. **product-strategist** scopes it: problem, users, prioritized features, business framing, phased roadmap. Nothing here is a tech decision.
-2. **architect-engineer** takes that scope and makes the technical calls (stack selection per this file's defaults, service boundaries, BFF/microservice/queue topology) for the first phase specifically — not the whole roadmap at once.
-3. **designer** takes the key user flows from the plan and the technical shape from architect-engineer and does the actual UX/design work.
-4. From there, proceed into the normal feature pipeline below for implementation.
+1. **product-strategist** scopes it. 2. **architect-engineer** makes the first phase's technical calls. 3. **designer** designs the key flows. 4. Then the feature pipeline below.
 
-### Default pipeline for non-trivial features
+### Feature pipeline
 
-A small, single-file change doesn't need this — just make it. For anything larger, follow this order instead of improvising per task, and skip stages that don't apply:
+Small, single-file changes skip this. For anything larger, follow this order, skip stages that don't apply, and keep a todo list with one item per stage so nothing gets dropped between handoffs.
 
-1. **architect-engineer** — only when the change spans multiple features/layers or introduces a new pattern (e.g. introducing a new microservice, adding a BFF, or moving a synchronous call to a queue); skip for straightforward additions that fit the existing shape.
-2. **designer** — **mandatory, not a judgment call**, when the change (a) renders on more than one route or adds/changes global chrome (header, nav, switchers, layout shells), (b) adds a new UI primitive or changes a token/variant, or (c) introduces a layout/UX pattern the repo doesn't already have. Designer hands back a concrete spec (placement, states, exact values, and behavior at 390/768/1280) that frontend-engineer implements without re-deciding. The size of the diff is not the test — the number of routes and states it touches is; a "small" global header can still duplicate the logo a page's own shell already renders. **Brief the designer with the problem, not the answer:** the dispatch describes the user's problem, who hits it, and the real constraints. Any solution you have in mind (e.g. "add it to Settings") is labelled as one hypothesis to test against alternatives, never stated as the plan; a designer handed a placement tends to confirm it. Also dispatch designer when a feature needs a *home* — a new section, page, or entry point — even if every component in it already exists.
-3. **backend-engineer** / **frontend-engineer** implement. If a feature spans both, write down the API contract (request/response shape, types) first and hand that literal contract to whichever agent needs it — subagents don't see each other's conversation, so context has to be carried explicitly, not assumed shared.
-4. **qa-engineer** verifies before anything is called done — for UI, that includes the mobile Playwright project and screenshots at both viewports (see Testing).
-5. **security-engineer** — only for auth, payments, external input, or data exposure.
-6. **technical-writer** — only when the change needs user- or developer-facing docs.
-7. **devops-engineer** — only when the change touches Docker/Compose, CI/CD, or Cloudflare config; most feature work never reaches this stage.
-8. `/code-review` as the gate before considering the work finished; for UI changes, also run the `web-design-guidelines` skill (accessibility and interface-guideline review) — it catches contrast, target-size, and semantics problems that a correctness review won't.
-
-When a task spans more than one stage, keep a todo list (one item per stage/handoff) so nothing is silently dropped between dispatches.
+1. **architect-engineer** — only when the change spans features/layers or introduces a new pattern.
+2. **designer** — whenever the change renders on more than one route or touches global chrome (header, nav, switchers, layout shells), adds or changes a primitive, token or variant, introduces a UX pattern the repo doesn't have, or needs a *home* (a new section, page or entry point) even if its parts exist. The test is how many routes and states it touches, not the size of the diff. The designer hands back a spec — placement, states, exact values, behaviour at 390/768/1280 — that implementation doesn't re-decide.
+3. **backend-engineer** / **frontend-engineer** implement. If a feature spans both, write the API contract first and hand the literal contract to each.
+4. **qa-engineer** verifies — for UI, including the mobile project and screenshots at both viewports.
+5. **security-engineer** — auth, payments, external input, data exposure.
+6. **technical-writer** — when user- or developer-facing docs change.
+7. **devops-engineer** — when Docker, CI/CD or Cloudflare config changes.
+8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics).
 
 ## Workflow
 
-- **Trunk-based development with a PR gate.** Branch off trunk (`main`, or the repo's actual default branch), keep branches short-lived (small enough to merge within a day or two, not week-long feature branches) and merge frequently. Every branch still goes through a PR and review before merging — no direct commits to trunk — but keep the diff small enough to review fast. If a feature can't ship complete within that window, land it incrementally behind a feature flag (see Feature flags below) instead of keeping a long-lived branch open.
-- Use the `open-pr` skill to create PRs and the `resolve-pr-comments` skill to work through reviewer feedback on an open PR.
-- Use `gh` to create/inspect PRs.
-- Use the `conventional-commit` skill for commit messages.
-- Secrets: never hardcode or commit them. `.env` stays out of git; commit a `.env.example` with keys but no values.
-- Backend logging is structured (not `console.log`), and never includes secrets or PII.
+- **Trunk-based with a PR gate.** Short-lived branches off the default branch, merged within a day or two through a reviewed PR; no direct commits to trunk. Work that can't ship complete in that window lands behind a feature flag.
+- Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`.
+- Secrets never in git: `.env` ignored, `.env.example` committed with keys and no values.
+- Backend logging is structured, never `console.log`, never secrets or PII.
 
 ## Task tracking
 
-- **GitHub Issues + a Project board** (kanban: Todo/In Progress/Done, or closer to that shape — GitHub's built-in Status field's options aren't scriptable via `gh`, so don't fight it for an exact custom column set) is the default tracker for a non-trivial project, seeded once a plan doc (e.g. `PLAN.md`) has a real feature list — one issue per feature/component, assigned to whichever repo owns it.
-- **Seed tickets thin, enrich them just-in-time.** A freshly-seeded ticket is a title plus a pointer to the plan doc — that's fine as a backlog placeholder, but it is not enough to dispatch work against. Don't front-load full detail onto the whole backlog at once: a plan doc's shape keeps changing as a project evolves, and a fully-detailed ticket written weeks before anyone picks it up risks going stale before it's touched. Instead, right before dispatching a ticket, write the real detail into the issue itself (edit the body, don't just put it in the dispatch prompt) — Context (doc section links), Scope (explicit in/out — what's deferred and why), API contract (exact request/response shapes, only when the ticket crosses a service boundary), Acceptance criteria (checkboxes), Dependencies (cross-links to the issues it depends on / blocks). The dispatch prompt to an agent should draw from this written spec, not be the only place the spec exists — otherwise the detail disappears into chat history the moment the task is done, and nothing durable is left for a future reader (human or agent) who opens the issue cold.
-- **Retrofit a ticket once its PR lands**, even if it wasn't enriched going in — update the issue with what was actually built (the real contract, what got deferred, acceptance criteria as completed checkboxes) before considering it done. A closed-but-empty ticket is a wasted opportunity for the next person who needs to understand that feature without re-reading its source.
+- GitHub Issues plus a Project board (Todo / In Progress / Done), seeded from the plan doc with one issue per feature.
+- **Seed thin, enrich just in time.** A seeded ticket is a title and a link. Right before dispatching it, write the real detail into the issue itself — context links, scope in/out, API contract if it crosses a service boundary, acceptance criteria, dependencies — and draw the dispatch prompt from it, so the spec outlives the chat.
+- **Retrofit when the PR lands**: what was actually built, the real contract, what was deferred, criteria ticked.
 
 ## Feature flags
 
-Feature flags exist to make trunk-based development possible: they let incomplete or risky work merge to trunk without being exposed, instead of sitting in a long-lived branch.
+- Named `feature.<area>.<name>`, read through one central flags module per project, checked at the feature's entry point (route, top-level component) rather than deep in business logic.
+- Default off in production. Remove the flag and its dead path once fully rolled out; note the planned cleanup point when introducing it.
 
-- **Naming:** `feature.<area>.<name>` (e.g. `feature.checkout.express-pay`) — consistent, greppable, and namespaced by area so flags don't collide across features.
-- **Where they live:** one central flags module/config per project (e.g. `shared/feature-flags.ts` on the backend, an equivalent on the frontend) that the rest of the codebase reads through — never scattered ad-hoc boolean env-var checks inlined in business logic.
-- **Where they're checked:** at the boundary/entry point of the feature (a route, a top-level component), not threaded deep into business logic — the use-case/service underneath shouldn't need to know a flag exists.
-- **Default state:** new flags default OFF in production; on/off in lower environments as needed for testing.
-- **Cleanup is not optional:** once a flag is fully rolled out and stable (100% on, no rollback plan needed), remove the flag and its dead code path promptly — don't let resolved flags accumulate as permanent branching logic. Note the planned cleanup point when the flag is introduced (e.g. in the PR description via `open-pr`'s Feature flag section) so it isn't forgotten.
-
-## Docker
-
-Applies to any project that ships a Dockerfile/Compose setup (backend services, self-hosted bots, etc.):
-
-- **Multi-stage builds:** a build stage that installs full dependencies (incl. dev) and compiles/builds, then a slim runtime stage that copies only the production output + production `node_modules` — never ship devDependencies or build tooling in the final image.
-- **Pin base images** to a specific version tag (e.g. `node:22-alpine`), never `latest` — reproducible builds matter more than always-fresh base images.
-- **Run as a non-root user** in the final image (`USER node` or an explicitly created user) rather than the container's default root.
-- **`.dockerignore`** excludes `node_modules`, `.env`, `.git`, tests, and anything not needed at runtime, both for build speed and to avoid leaking secrets/dev files into the image.
-- **Layer caching:** copy `package.json`/lockfile and run install before copying the rest of the source, so the dependency layer only invalidates when dependencies actually change.
-- **Secrets never baked into the image** — pass them via environment variables or a secrets mechanism at runtime, never `COPY`'d or `ARG`'d into a layer.
-- **One primary process per container**; use Docker Compose to orchestrate multi-service local dev/self-hosting (matches the `docker compose up` pattern already used across this user's self-hosted projects). Any project using BullMQ needs a `redis` service in that same compose file alongside `mongo` — pin its image tag and give it a volume if job/queue data should survive a restart.
-- **Health checks** (`HEALTHCHECK` or Compose's `healthcheck:`) for any long-running service, so orchestration can detect a hung/crashed process.
-
-<!-- CODEGRAPH_START -->
 ## CodeGraph
 
-In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
-
-- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
-- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
-
-If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
-<!-- CODEGRAPH_END -->
+In a repo with a `.codegraph/` directory, use it before grep/find or reading files to locate or understand code: the `codegraph_explore` MCP tool (load it via tool search if deferred), or `codegraph explore "<symbols or question>"` in the shell. With no `.codegraph/`, skip it — indexing is the user's decision.
