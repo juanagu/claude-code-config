@@ -4,19 +4,19 @@ Personal [Claude Code](https://claude.com/claude-code) setup: global engineering
 
 ## What's in here
 
-- **`CLAUDE.md`** — global engineering standards (`~/.claude/CLAUDE.md`): default stack, Clean Code/SOLID/Clean Architecture rules, feature-folder conventions, per-stack conventions (Next.js, Astro, Flutter, Fastify BFF/microservices, MongoDB, BullMQ+Redis, Cloudflare), testing standards, subagent roster and pipelines, trunk-based git workflow, feature flags, and Docker conventions.
+- **`CLAUDE.md`** — global engineering standards: default stack and how to choose within it, design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and primitives), code principles, feature folders, testing, the subagent roster and pipelines, workflow, task tracking, feature flags. Stack-specific conventions live in the agent that implements that stack.
 - **`agents/`** — 9 subagent definitions (`~/.claude/agents/`):
   - `product-strategist` — turns a raw platform idea into a scoped plan (features, users, business model, roadmap). No implementation opinions.
   - `architect-engineer` — system/module design decisions, ADRs, BFF/microservice/queue topology calls.
-  - `frontend-engineer` — Next.js/React, Astro, Flutter UI implementation.
-  - `backend-engineer` — Fastify BFFs/APIs/microservices, MongoDB repositories, BullMQ workers.
-  - `devops-engineer` — Docker/Compose, CI/CD, Cloudflare (WAF/cache/DNS) configuration.
+  - `frontend-engineer` — Next.js/React, Astro, Flutter UI implementation; holds those stacks' conventions.
+  - `backend-engineer` — Fastify BFFs/APIs/microservices, MongoDB repositories, BullMQ workers; holds those stacks' conventions.
+  - `devops-engineer` — Docker/Compose, CI/CD, Cloudflare (WAF/cache/DNS) configuration and conventions.
   - `qa-engineer` — test strategy and verification, including Playwright e2e.
-  - `designer` — UI/UX decisions, design systems.
+  - `designer` — where a feature belongs, UI/UX decisions and design systems, with Airbnb as the UX reference.
   - `security-engineer` — security review across the whole stack.
   - `technical-writer` — READMEs, API docs, ADRs, changelogs.
 - **`skills/`** — custom skills (`~/.claude/skills/`): `clean-code`, `conventional-commit`, `find-skills`, `frontend-design`, `pdf`, `security-threat-model`, `technical-writer`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`.
-- **`install.ps1`** / **`install.sh`** — copy everything above into `~/.claude` on a new machine.
+- **`install.ps1`** / **`install.sh`** — link `~/.claude` to this repo (an `@` import for `CLAUDE.md`, junctions/symlinks for `agents/` and each skill), backing up whatever they replace.
 
 ## Not included on purpose
 
@@ -44,4 +44,4 @@ Personal [Claude Code](https://claude.com/claude-code) setup: global engineering
 
 ## Keeping this in sync
 
-This repo doesn't auto-sync with `~/.claude` — when you update `CLAUDE.md`, an agent, or a skill locally, copy the change back here and commit it (or re-run the install script in reverse: copy from `~/.claude` into this repo).
+There is only one copy. After running the install script, `~/.claude/CLAUDE.md` imports this repo's `CLAUDE.md` and `~/.claude/agents` and the skills point into this repo, so editing either path edits the same file. Commit changes here through a PR like any other repo. (It used to be copy-based, and the two copies drifted apart.)
