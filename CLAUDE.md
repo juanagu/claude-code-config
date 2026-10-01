@@ -21,7 +21,16 @@ Don't force this stack onto a project that already uses something else — match
 
 ## Design defaults
 
-- **Mobile-first by default**, across every stack that renders UI (Next.js, Astro, Flutter web views). Design and build layouts starting from the smallest viewport and progressively enhance upward (`min-width` breakpoints), not the reverse. Only deviate when the user specifies a different priority for a specific project (e.g., an internal desktop-only dashboard).
+- **Mobile-first by default**, across every stack that renders UI (Next.js, Astro, Flutter web views). Design and build layouts starting from the smallest viewport and progressively enhance upward (`min-width` breakpoints), not the reverse. Only deviate when the user specifies a different priority for a specific project (e.g., an internal desktop-only dashboard). "Mobile-first" is verified, not assumed: no UI change is done until it has been looked at on a ~390px viewport as well as desktop (see Testing).
+- **Airbnb is the UX reference model** — for structure and behaviour, not only visuals: account settings hold administrative things only, anything describing the user or what the product makes for them gets its own destination, hubs link to focused pages, summary rows show the value with an explicit `Edit`, one primary action per screen, calm neutral states, little copy. A project's own docs can override this. The full version lives in the `designer` agent.
+- **Placement is decided before polish.** Where a feature lives is a design decision in its own right, made from the user's mental model rather than from which existing screen is convenient. If a screen needs copy to explain what doesn't belong on it, the structure is wrong.
+
+## Design system
+
+- **Tokens first, components second.** Every web project defines its design tokens once (Tailwind v4 `@theme` in the global stylesheet: colors, type scale, spacing, radii) and everything reads them through utility classes — never a raw hex/px value inside a component. The tokens are the only part of a design system that transfers to every surface (Next.js, Astro, and as an exported theme for Flutter); React components transfer only between the web apps.
+- **Shared primitives live in `src/shared/ui/`** (`Button`, `Input`/`Field`, `FormErrorMessage`, brand mark, etc.) with their own `feature_readme.md`. Feature components compose these primitives; they never hand-roll a variant's class string inline. The tell that a primitive is missing: the same 100+-character `className` appearing in more than one file. When you see that, extract the primitive first, then use it — a hand-rolled copy that drifts (e.g. one button's hover state no longer matching its siblings') is exactly the bug class this prevents.
+- **Primitives and tokens are `designer`-owned.** Adding or changing a variant, a token, or a primitive's states is a design decision that goes through `designer` first, not a frontend-engineer judgment call.
+- **Don't build the cross-repo package early.** Extract primitives inside the app as soon as duplication exists; lift them into a shared package only once a second web surface actually consumes them. Flutter never consumes the React package — it gets the tokens.
 
 ## Clean Code
 
@@ -63,6 +72,9 @@ The internal layering within a feature folder is stack-specific, not a single un
 - Business/domain logic lives outside components (hooks, lib/, services) — components stay presentational + composition.
 - Validate all external input (forms, search params, API responses) at the boundary.
 - Feature-based folder structure over type-based (`features/checkout/` not scattered `components/`, `hooks/`, `utils/` for unrelated features).
+- **Shared layouts never re-render on client-side navigation.** Anything whose output depends on the route or the session (an auth-state header, per-route chrome) must live in a route-group segment layout (e.g. `app/(app)/layout.tsx`) that mounts/unmounts as the route changes — never in the root layout. A root layout that branches on route/session goes stale on every soft navigation (a header still showing the previous user after sign-out, or missing entirely after sign-in, until a hard reload), and no amount of `router.refresh()` fixes it.
+- After a client-side mutation that changes Server Component output (sign-in/sign-out, locale switch, a settings change), call `router.refresh()` **after** any `router.push()`, not before — the App Router's action queue discards a refresh that is still pending when a navigation is dispatched, so `refresh(); push()` is equivalent to a bare `push()`.
+- Anything that renders on more than one route (global chrome such as headers, nav, switchers) is designed with the routes' existing shells in mind — check every route it will appear on for duplicated branding or redundant controls before calling it done, not just the one you built it on.
 
 ### Astro (static/marketing sites)
 - Static output by default (`output: 'static'`); only reach for SSR/hybrid rendering if the project genuinely needs a server (e.g. per-request personalization) — that's a signal it may actually belong on Next.js instead.
@@ -122,6 +134,8 @@ The internal layering within a feature folder is stack-specific, not a single un
 - Integration-test repositories against a real/test MongoDB instance, and routes end-to-end through Fastify's inject.
 - Integration-test BullMQ job processors against a real/test Redis instance, not a mocked queue — assert on the actual side effect the job produces, and cover the retry path (a processor that throws should leave the job retryable, not silently swallow the failure).
 - Frontend e2e (Next.js and Astro alike): Playwright for critical user flows — page loads, navigation, forms, locale/language switching, interactive components actually working — not a replacement for component-level tests, just the top of the pyramid.
+- **Playwright runs at least two projects: a desktop viewport and a mobile one** (a phone device preset or ~390px). A suite that only runs `Desktop Chrome` has never exercised the mobile-first layouts this file requires — the typical escape is a flex row that wraps at phone width and lands its actions on the wrong side. Layout assertions belong in the mobile project too, not only desktop.
+- **UI changes are not done without screenshots at both viewports** (mobile and desktop, every relevant state — signed in/out, error, pending). Whoever implements the change produces them and attaches or links them in the PR; "I didn't spin up the app" is a blocker to resolve, not a caveat to note. This applies to the orchestrator's own verification as much as to subagents — a desktop-only screenshot is half a check.
 - Don't mock what you're directly testing; don't over-mock to the point the test stops proving anything.
 - A feature isn't done until it's tested — delegate to the `qa-engineer` subagent when a change needs test coverage beyond a quick check. Note: subagent shell/Bash access has been unreliable in practice (see Subagents section) — if `qa-engineer` can't actually execute a test suite it wrote, run it yourself rather than treating unexecuted tests as verification.
 
@@ -134,7 +148,7 @@ Specialized subagents live in `~/.claude/agents/`. **This file is standing autho
 - **backend-engineer** — Fastify APIs, microservices, BFFs, MongoDB repositories, and BullMQ queues/workers.
 - **qa-engineer** — test strategy, writing tests, verifying a change actually works.
 - **architect-engineer** — design/boundary decisions, only when a change spans 2+ layers/features, introduces a new pattern, or touches shared/core code. Owns calls like BFF-vs-direct-service-access, new-microservice-vs-extend-existing, and queue-vs-synchronous-call.
-- **designer** — real UI/UX decisions (new components, new layout/UX patterns, design systems). frontend-engineer handles minor visual tweaks itself.
+- **designer** — real UI/UX decisions (which screen a feature belongs on, new components, new layout/UX patterns, design systems), with Airbnb as the UX reference. frontend-engineer handles minor visual tweaks itself.
 - **technical-writer** — READMEs, API docs, ADRs, changelogs.
 - **security-engineer** — security review, threat modeling, secure-coding guidance, including Cloudflare/WAF/edge posture and queue payload validation.
 - **devops-engineer** — Docker/Compose authoring, CI/CD pipelines, and Cloudflare configuration (DNS, WAF rules, cache rules). Implements the topology architect-engineer decided; doesn't decide it.
@@ -157,12 +171,13 @@ Distinct from the feature pipeline below — this is for a genuinely new idea, b
 A small, single-file change doesn't need this — just make it. For anything larger, follow this order instead of improvising per task, and skip stages that don't apply:
 
 1. **architect-engineer** — only when the change spans multiple features/layers or introduces a new pattern (e.g. introducing a new microservice, adding a BFF, or moving a synchronous call to a queue); skip for straightforward additions that fit the existing shape.
-2. **backend-engineer** / **frontend-engineer** implement. If a feature spans both, write down the API contract (request/response shape, types) first and hand that literal contract to whichever agent needs it — subagents don't see each other's conversation, so context has to be carried explicitly, not assumed shared.
-3. **qa-engineer** verifies before anything is called done.
-4. **security-engineer** — only for auth, payments, external input, or data exposure.
-5. **technical-writer** — only when the change needs user- or developer-facing docs.
-6. **devops-engineer** — only when the change touches Docker/Compose, CI/CD, or Cloudflare config; most feature work never reaches this stage.
-7. `/code-review` as the gate before considering the work finished.
+2. **designer** — **mandatory, not a judgment call**, when the change (a) renders on more than one route or adds/changes global chrome (header, nav, switchers, layout shells), (b) adds a new UI primitive or changes a token/variant, or (c) introduces a layout/UX pattern the repo doesn't already have. Designer hands back a concrete spec (placement, states, exact values, and behavior at 390/768/1280) that frontend-engineer implements without re-deciding. The size of the diff is not the test — the number of routes and states it touches is; a "small" global header can still duplicate the logo a page's own shell already renders. **Brief the designer with the problem, not the answer:** the dispatch describes the user's problem, who hits it, and the real constraints. Any solution you have in mind (e.g. "add it to Settings") is labelled as one hypothesis to test against alternatives, never stated as the plan; a designer handed a placement tends to confirm it. Also dispatch designer when a feature needs a *home* — a new section, page, or entry point — even if every component in it already exists.
+3. **backend-engineer** / **frontend-engineer** implement. If a feature spans both, write down the API contract (request/response shape, types) first and hand that literal contract to whichever agent needs it — subagents don't see each other's conversation, so context has to be carried explicitly, not assumed shared.
+4. **qa-engineer** verifies before anything is called done — for UI, that includes the mobile Playwright project and screenshots at both viewports (see Testing).
+5. **security-engineer** — only for auth, payments, external input, or data exposure.
+6. **technical-writer** — only when the change needs user- or developer-facing docs.
+7. **devops-engineer** — only when the change touches Docker/Compose, CI/CD, or Cloudflare config; most feature work never reaches this stage.
+8. `/code-review` as the gate before considering the work finished; for UI changes, also run the `web-design-guidelines` skill (accessibility and interface-guideline review) — it catches contrast, target-size, and semantics problems that a correctness review won't.
 
 When a task spans more than one stage, keep a todo list (one item per stage/handoff) so nothing is silently dropped between dispatches.
 
@@ -203,3 +218,14 @@ Applies to any project that ships a Dockerfile/Compose setup (backend services, 
 - **Secrets never baked into the image** — pass them via environment variables or a secrets mechanism at runtime, never `COPY`'d or `ARG`'d into a layer.
 - **One primary process per container**; use Docker Compose to orchestrate multi-service local dev/self-hosting (matches the `docker compose up` pattern already used across this user's self-hosted projects). Any project using BullMQ needs a `redis` service in that same compose file alongside `mongo` — pin its image tag and give it a volume if job/queue data should survive a restart.
 - **Health checks** (`HEALTHCHECK` or Compose's `healthcheck:`) for any long-running service, so orchestration can detect a hung/crashed process.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->
