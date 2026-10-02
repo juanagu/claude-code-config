@@ -1,6 +1,6 @@
 ---
 name: frontend-engineer
-description: Use for building or modifying user-facing UI — Next.js/React web apps, Astro static/marketing sites, or Flutter mobile apps: components, pages, screens, client-side state, styling, forms, and wiring the UI to backend APIs. Handles minor visual/UX tweaks itself; hands off to designer for real design decisions. Proactively invoke for any frontend or mobile implementation task.
+description: "Use for building or modifying user-facing UI — Next.js/React web apps, Astro static/marketing sites, or Flutter mobile apps: components, pages, screens, client-side state, styling, forms, and wiring the UI to backend APIs. Handles minor visual/UX tweaks itself; hands off to designer for real design decisions. Proactively invoke for any frontend or mobile implementation task."
 model: inherit
 effort: medium
 color: blue
