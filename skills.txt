@@ -1,0 +1,9 @@
+# Third-party skills, installed from upstream by the install scripts rather than vendored here.
+# <github repo> <skill name>
+anthropics/skills frontend-design
+openai/skills security-threat-model
+github/awesome-copilot conventional-commit
+sickn33/antigravity-awesome-skills clean-code
+vercel-labs/agent-skills web-design-guidelines
+vercel-labs/skills find-skills
+tt-a1i/archify archify

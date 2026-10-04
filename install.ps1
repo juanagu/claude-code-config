@@ -5,7 +5,9 @@
   - ~/.claude/CLAUDE.md becomes a one-line import of this repo's CLAUDE.md.
   - ~/.claude/agents becomes a directory junction to this repo's agents/.
   - Each skill in this repo's skills/ is junctioned into ~/.claude/skills/;
-    skills installed from elsewhere (e.g. archify) are left alone.
+    skills installed from elsewhere are left alone.
+  - The third-party skills listed in skills.txt are installed from upstream
+    with `npx skills`.
 
   Anything replaced is moved to ~/.claude/backup-<timestamp>/ first. Junctions
   need no admin rights. Re-running is safe.
@@ -51,6 +53,23 @@ Get-ChildItem (Join-Path $PSScriptRoot "skills") -Directory | ForEach-Object {
     Set-Junction (Join-Path $skillsDir $_.Name) $_.FullName
 }
 
+# A skill that moved from skills/ to skills.txt leaves a junction to a folder that no longer exists.
+$repoSkills = Join-Path $PSScriptRoot "skills"
+Get-ChildItem $skillsDir -Force | Where-Object {
+    $_.LinkType -eq "Junction" -and ([string]$_.Target).StartsWith($repoSkills) -and -not (Test-Path ([string]$_.Target))
+} | ForEach-Object { [IO.Directory]::Delete($_.FullName) }
+
 Write-Host "Linked ~/.claude to $PSScriptRoot (CLAUDE.md import, agents/ and skills/ junctions)."
 if (Test-Path $backupDir) { Write-Host "Replaced files were moved to $backupDir" }
-Write-Host "archify isn't included here (see README) - reinstall it separately if you use it."
+
+if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
+    Write-Host "npx not found: skipped the skills in skills.txt. Install Node.js and re-run."
+    return
+}
+$failed = @()
+Get-Content (Join-Path $PSScriptRoot "skills.txt") | Where-Object { $_ -notmatch '^\s*(#|$)' } | ForEach-Object {
+    $repo, $skill = -split $_
+    npx -y skills add $repo --skill $skill --global --agent claude-code --yes
+    if ($LASTEXITCODE -ne 0) { $failed += $skill }
+}
+if ($failed) { Write-Host "Failed to install: $($failed -join ', ')"; exit 1 }

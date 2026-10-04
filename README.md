@@ -2,17 +2,20 @@
 
 My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents and skills. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
 
+It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
+
 ## How it works
 
 There is one copy of the config, and it's this repo. The install script points `~/.claude` at it:
 
-| `~/.claude/…` | Points to | How |
+| `~/.claude/…` | Comes from | How |
 | --- | --- | --- |
 | `CLAUDE.md` | `CLAUDE.md` | a one-line `@` import |
 | `agents/` | `agents/` | junction (Windows) / symlink |
-| `skills/<name>/` | `skills/<name>/` | one junction / symlink per skill; skills installed from elsewhere are left alone |
+| `skills/<name>/` for skills written here | `skills/<name>/` | one junction / symlink per skill |
+| `skills/<name>/` for third-party skills | `skills.txt` | installed from upstream with [`npx skills`](https://github.com/vercel-labs/skills) |
 
-Edit a file through either path and you edit the same file. Nothing needs syncing; it just needs committing.
+Edit a file through either path and you edit the same file. Nothing needs syncing; it just needs committing. Third-party skills aren't vendored, so they never go stale here and their licenses stay with their authors.
 
 ## What's in here
 
@@ -38,42 +41,50 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 
 Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`.
 
-### `skills/`
+### Skills
+
+Written here, in `skills/`:
 
 | Skill | What it does |
 | --- | --- |
 | `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. |
 | `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
-| `conventional-commit` | Writes Conventional Commits messages. |
-| `clean-code` | Clean Code refactoring guidance. |
-| `frontend-design` | Distinctive, production-grade UI. |
-| `web-design-guidelines` | Audits UI against web interface guidelines (contrast, target size, semantics). |
-| `security-threat-model` | Repo-grounded threat model written as Markdown. |
-| `technical-writer` | Documentation writing guidance. |
-| `find-skills` | Finds and installs other skills. |
-| `pdf` | Reads, fills, merges and creates PDFs. |
+
+Installed from upstream, listed in `skills.txt`:
+
+| Skill | Source | What it does |
+| --- | --- | --- |
+| `conventional-commit` | [github/awesome-copilot](https://github.com/github/awesome-copilot) | Conventional Commits messages. |
+| `clean-code` | [sickn33/antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) | Clean Code refactoring pass. |
+| `frontend-design` | [anthropics/skills](https://github.com/anthropics/skills) | Distinctive, production-grade UI. |
+| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Audits UI against web interface guidelines (contrast, target size, semantics). |
+| `security-threat-model` | [openai/skills](https://github.com/openai/skills) | Repo-grounded threat model written as Markdown. |
+| `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Finds and installs other skills. |
+| `archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | Architecture, sequence and data-flow diagrams as standalone HTML. |
+
+To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run the install script.
 
 ## Prerequisites
 
-The config expects these on `PATH`. The install script doesn't install them.
+The install script doesn't install these.
 
 | Tool | Needed for |
 | --- | --- |
-| `git`, [`gh`](https://cli.github.com/) (logged in) | The PR workflow; `open-pr` and `resolve-pr-comments` call `gh`. |
-| Node.js | `npx skills add` and archify. |
-| `codegraph` | The CodeGraph section of `CLAUDE.md` and the `codegraph_explore` MCP tool. Optional: without it Claude falls back to grep/Read. |
-| [`rtk`](https://github.com/rtk-ai/rtk) | The Bash `PreToolUse` hook in my `settings.json` (see below). |
+| `git` | `npx skills` clones each skill's repo. |
+| Node.js (`npx`) | Installing the skills in `skills.txt`. Without it, the script links everything else and skips them. |
+| [`gh`](https://cli.github.com/), logged in | `open-pr` and `resolve-pr-comments`. |
+| `codegraph` | Optional. The CodeGraph section of `CLAUDE.md` and its `codegraph_explore` MCP tool; without it Claude falls back to grep/Read. |
+| [`rtk`](https://github.com/rtk-ai/rtk) | Optional. Only if you copy my `settings.json` hook (see below). |
 
 ## Setting up a new machine
 
-1. Install the prerequisites above.
+1. Install the prerequisites.
 2. Clone this repo somewhere permanent, since `~/.claude` will point into it. Moving it later means re-running the install.
 3. Run the install script. It's safe to re-run, and anything it replaces is moved to `~/.claude/backup-<timestamp>/` first.
    - Windows: `./install.ps1` (junctions, no admin rights needed)
    - macOS/Linux: `./install.sh`
-4. Recreate `~/.claude/settings.json` (see below).
-5. Reinstall archify if you use it (see below).
-6. Start a new Claude Code session so it reads the new config.
+4. Recreate `~/.claude/settings.json` if you want my hooks and permissions (see below).
+5. Start a new Claude Code session so it reads the new config.
 
 Check it worked: `/agents` should list the nine agents, and `/memory` should show the user `CLAUDE.md` importing this repo's.
 
@@ -89,25 +100,6 @@ Check it worked: `/agents` should list the nine agents, and `/memory` should sho
 
 If it ends up in this repo, the install script should copy it rather than link it. Claude Code rewrites the file itself (`/config`, "always allow" prompts), which can break a link, and on Windows a file symlink needs admin rights anyway.
 
-### archify
-
-[tt-a1i/archify](https://github.com/tt-a1i/archify) is a third-party diagram skill. A vendored copy here would go stale, so reinstall it instead:
-
-```sh
-npx skills add tt-a1i/archify -g
-```
-
-If that fails because `git` isn't on `PATH` yet:
-
-```powershell
-Invoke-WebRequest -Uri "https://github.com/tt-a1i/archify/archive/refs/heads/main.zip" -OutFile archify.zip
-Expand-Archive archify.zip -DestinationPath archify-extract
-Copy-Item -Recurse archify-extract\archify-main\archify "$HOME\.claude\skills\archify"
-cd "$HOME\.claude\skills\archify"
-npm install --omit=dev
-node bin/archify.mjs doctor   # should report "Archify is ready."
-```
-
 ### Machine and account state
 
 `.credentials.json`, `settings.local.json`, `history.jsonl`, `projects/` (per-project memory and transcripts), `sessions/`, `cache/` and the rest of `~/.claude` stay out of git. They're per-machine, sensitive, or both.
@@ -115,11 +107,20 @@ node bin/archify.mjs doctor   # should report "Archify is ready."
 ## Making changes
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
-- **New skill:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. Agents need no re-run, because the whole folder is linked.
-- **New agent:** add `agents/<name>.md`, then add it to the roster in `CLAUDE.md` and to the table above.
+- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. **Third-party skill:** add it to `skills.txt` instead.
+- **New agent:** add `agents/<name>.md`, then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
 - Open a new session to pick up the change, then ship it through a PR (`open-pr`).
+
+## Using it yourself
+
+Fork it rather than installing it as-is: `CLAUDE.md` is one person's defaults. The parts most likely to transfer are the agent roster and pipeline, the report shape every agent ends with, and the two PR skills. The stack and design sections are the ones to rewrite.
 
 ## Gotchas
 
-- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to a backup without telling you.
+- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to a backup without telling you.
 - **Agent frontmatter must be valid YAML.** If an agent's `description` contains a `: `, quote it, or the agent silently fails to load.
+- **Line endings.** `.gitattributes` keeps `*.sh` as LF. With `core.autocrlf=true` it would otherwise be checked out as CRLF, and `./install.sh` fails under Git Bash or WSL.
+
+## License
+
+[MIT](LICENSE) for everything written here. Skills in `skills.txt` are installed from their own repos under their own licenses.
