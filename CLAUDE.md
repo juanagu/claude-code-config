@@ -80,7 +80,7 @@ Skills to reach for directly: `clean-code`, `security-threat-model`, `frontend-d
 Small, single-file changes skip this. For anything larger, follow this order, skip stages that don't apply, and keep a todo list with one item per stage so nothing gets dropped between handoffs.
 
 1. **architect-engineer** — only when the change spans features/layers or introduces a new pattern.
-2. **designer** — whenever the change renders on more than one route or touches global chrome (header, nav, switchers, layout shells), adds or changes a primitive, token or variant, introduces a UX pattern the repo doesn't have, or needs a *home* (a new section, page or entry point) even if its parts exist. The test is how many routes and states it touches, not the size of the diff. The designer hands back a spec — placement, states, exact values, behaviour at 390/768/1280 — that implementation doesn't re-decide.
+2. **designer** — whenever the change renders on more than one route or touches global chrome (header, nav, switchers, layout shells), adds or changes a primitive, token or variant, introduces a UX pattern the repo doesn't have, or needs a *home* (a new section, page or entry point) even if its parts exist. The test is how many routes and states it touches, not the size of the diff. The designer hands back a spec — placement, states, exact values, behaviour at 390/768/1280 — that implementation doesn't re-decide, plus an HTML artboard for a new or changed screen. Publish the artboard and get the user's approval before dispatching implementation.
 3. **backend-engineer** / **frontend-engineer** implement. If a feature spans both, write the API contract first and hand the literal contract to each.
 4. **qa-engineer** verifies — for UI, including the mobile project and screenshots at both viewports.
 5. **security-engineer** — auth, payments, external input, data exposure.
@@ -91,9 +91,9 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 ## Workflow
 
 - **Trunk-based with a PR gate.** Short-lived branches off the default branch, merged within a day or two through a reviewed PR; no direct commits to trunk. Work that can't ship complete in that window lands behind a feature flag.
-- Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`. Squash-merge and delete the branch.
-- **Merging is the user's call** unless a project grants it. Where it does, merge only after all three: a `/code-review` reports no correctness bugs (a high pass to find them, then a medium pass to confirm, since high passes always find nitpicks and never converge); CI has finished green (if it's still pending, keep waiting, because a wait that times out is never a reason to merge); and you've re-run the checks yourself.
-- **Use a git worktree when the main checkout is serving a running dev server.** Worktrees don't inherit untracked files (`.env`, `.env.local`, `.git/hooks`), so copy what's needed. Remove the worktree once its branch is pushed, and never one with unpushed work.
+- Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`.
+- **Merging is the user's call** unless they grant it. Where they do, merge only after all three: every correctness bug a high `/code-review` pass found is fixed, and a medium pass then reports none (high passes always find nitpicks, so they never converge on their own); CI has finished green (if it's still pending, keep waiting, because a wait that times out is never a reason to merge); and you've re-run the checks yourself. Squash-merge and delete the branch.
+- **Use a git worktree when the main checkout is serving a running dev server.** Worktrees share the repo's hooks but not untracked files (`.env`, `.env.local`, `node_modules`), so copy or install what's needed. Remove the worktree once its branch is pushed, never one with unpushed work; for review fixes later, add a fresh one from the remote branch.
 - Secrets never in git: `.env` ignored, `.env.example` committed with keys and no values.
 - Backend logging is structured, never `console.log`, never secrets or PII.
 
@@ -108,10 +108,10 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 **The repo is the memory; the conversation is a cache.** A transcript gets compacted and ends, and knowledge that exists only there is knowledge the project doesn't have.
 
 - Anything decided on the user's behalf lands in an ADR or the issue before the session ends, never only in chat.
-- Each kind of knowledge has one home: scope in the plan doc; system shape in the architecture doc; a decision with its alternatives in an ADR; what a feature does in its `feature_readme.md`; how to run it, and what bites, in a development doc; status on the board. None of them mirrors another.
+- Each kind of knowledge has one home: scope in the plan doc; system shape in the architecture doc; a decision with its alternatives in an ADR; what a feature is for the user, across repos, in its `docs/features/` doc; what a feature's code exposes in its `feature_readme.md`; how to run it, and what bites, in a development doc; status on the board. None of them mirrors another.
 - Claude's local memory holds only machine and toolchain facts and the user's working preferences. Project knowledge goes in the repo, with at most a pointer in memory.
 - A project's `CLAUDE.md` stays short, because it loads every session, and points at those docs instead of restating them. An `AGENTS.md` that just points at `CLAUDE.md` lets other tools find the same instructions.
-- **Cold-start check after each module.** Dispatch a fresh read-only agent (`Plan`) with no history, only the working directory and the next ticket. Ask it for an orientation, a run recipe, a plan and an exhaustive gap report, and tell it an empty gap report is a worse outcome than a long one. Every place it stalls is a doc to fix.
+- **Cold-start check after each milestone.** Dispatch a fresh read-only agent (`Plan`) with no history, only the working directory and the next ticket. Ask it for an orientation, the run recipe as the docs give it, a plan, and a gap report where each gap names what it looked for and where. Say plainly that you want gaps found, not reassurance: left to itself it reports politely and finds little. Fix the gaps that would really stall someone; drop the ones that would only lengthen the docs.
 
 ## Feature flags
 
