@@ -15,6 +15,7 @@ You write and maintain developer-facing documentation. Accuracy beats completene
 - Concrete examples over abstract descriptions wherever the doc type calls for it (README quickstart, API reference, usage guide).
 - Match the audience: a README's top is for someone with zero context; deep architecture notes assume familiarity.
 - Keep docs close to what they document (co-located README, doc-comments on public APIs) unless the repo has an established separate docs location — follow that convention if one exists.
+- Project docs, unless the repo already has a layout: short plan, architecture and design docs that act as indexes; one doc per feature under `docs/features/` (what it does for the user, its design, links to its ADRs, issues and specs); proposals under `docs/proposals/` until accepted; an ADR index; and a `DEVELOPMENT.md` with how to run the project and the gotchas that cost real time.
 - No stale content: when updating a doc, check for other sections/examples it invalidates and fix those too, don't leave contradictions.
 
 ## Process

@@ -50,6 +50,7 @@ Organize by feature, not technical type, in every stack — `features/checkout/`
 - **UI changes ship with screenshots at both viewports**, for every relevant state (signed in/out, error, pending, empty), linked in the PR. Whoever implements produces them, and not having run the app is a blocker to resolve, not a caveat.
 - Don't mock what you're testing, or so much that the test proves nothing.
 - **Never accept a self-reported "tests pass".** Re-run the same commands yourself before calling work done, whether or not the subagent's shell worked.
+- **A running server proves nothing about which code it runs.** After a merge or a dependency change, restart the local stack before demoing or verifying against it: a stale process still answers `200`, so a health check isn't evidence.
 
 ## Subagents
 
@@ -90,7 +91,9 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 ## Workflow
 
 - **Trunk-based with a PR gate.** Short-lived branches off the default branch, merged within a day or two through a reviewed PR; no direct commits to trunk. Work that can't ship complete in that window lands behind a feature flag.
-- Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`.
+- Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`. Squash-merge and delete the branch.
+- **Merging is the user's call** unless a project grants it. Where it does, merge only after all three: a `/code-review` reports no correctness bugs (a high pass to find them, then a medium pass to confirm, since high passes always find nitpicks and never converge); CI has finished green (if it's still pending, keep waiting, because a wait that times out is never a reason to merge); and you've re-run the checks yourself.
+- **Use a git worktree when the main checkout is serving a running dev server.** Worktrees don't inherit untracked files (`.env`, `.env.local`, `.git/hooks`), so copy what's needed. Remove the worktree once its branch is pushed, and never one with unpushed work.
 - Secrets never in git: `.env` ignored, `.env.example` committed with keys and no values.
 - Backend logging is structured, never `console.log`, never secrets or PII.
 
@@ -99,6 +102,16 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 - GitHub Issues plus a Project board (Todo / In Progress / Done), seeded from the plan doc with one issue per feature.
 - **Seed thin, enrich just in time.** A seeded ticket is a title and a link. Right before dispatching it, write the real detail into the issue itself — context links, scope in/out, API contract if it crosses a service boundary, acceptance criteria, dependencies — and draw the dispatch prompt from it, so the spec outlives the chat.
 - **Retrofit when the PR lands**: what was actually built, the real contract, what was deferred, criteria ticked.
+
+## Knowledge
+
+**The repo is the memory; the conversation is a cache.** A transcript gets compacted and ends, and knowledge that exists only there is knowledge the project doesn't have.
+
+- Anything decided on the user's behalf lands in an ADR or the issue before the session ends, never only in chat.
+- Each kind of knowledge has one home: scope in the plan doc; system shape in the architecture doc; a decision with its alternatives in an ADR; what a feature does in its `feature_readme.md`; how to run it, and what bites, in a development doc; status on the board. None of them mirrors another.
+- Claude's local memory holds only machine and toolchain facts and the user's working preferences. Project knowledge goes in the repo, with at most a pointer in memory.
+- A project's `CLAUDE.md` stays short, because it loads every session, and points at those docs instead of restating them. An `AGENTS.md` that just points at `CLAUDE.md` lets other tools find the same instructions.
+- **Cold-start check after each module.** Dispatch a fresh read-only agent (`Plan`) with no history, only the working directory and the next ticket. Ask it for an orientation, a run recipe, a plan and an exhaustive gap report, and tell it an empty gap report is a worse outcome than a long one. Every place it stalls is a doc to fix.
 
 ## Feature flags
 
