@@ -62,7 +62,9 @@ Installed from upstream, listed in `skills.txt`:
 | `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Finds and installs other skills. |
 | `archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | Architecture, sequence and data-flow diagrams as standalone HTML. |
 
-To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run the install script.
+To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run the install script. Each run installs the current upstream version, unpinned, and needs network access. Read a skill's diff before re-running if you care what changed: its `SKILL.md` loads into every session.
+
+`pdf` used to be vendored here and is gone on purpose: its license doesn't allow redistribution, and Claude already ships it as `anthropic-skills:pdf`.
 
 ## Prerequisites
 
@@ -117,7 +119,7 @@ Fork it rather than installing it as-is: `CLAUDE.md` is one person's defaults. T
 
 ## Gotchas
 
-- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to a backup without telling you.
+- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to `~/.claude/backup-<timestamp>/`, so anything you meant to keep is easy to miss.
 - **Agent frontmatter must be valid YAML.** If an agent's `description` contains a `: `, quote it, or the agent silently fails to load.
 - **Line endings.** `.gitattributes` keeps `*.sh` as LF. With `core.autocrlf=true` it would otherwise be checked out as CRLF, and `./install.sh` fails under Git Bash or WSL.
 

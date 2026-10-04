@@ -53,10 +53,9 @@ Get-ChildItem (Join-Path $PSScriptRoot "skills") -Directory | ForEach-Object {
     Set-Junction (Join-Path $skillsDir $_.Name) $_.FullName
 }
 
-# A skill that moved from skills/ to skills.txt leaves a junction to a folder that no longer exists.
-$repoSkills = Join-Path $PSScriptRoot "skills"
+# A broken junction (a skill that moved to skills.txt, or a clone that moved) would block reinstalling it.
 Get-ChildItem $skillsDir -Force | Where-Object {
-    $_.LinkType -eq "Junction" -and ([string]$_.Target).StartsWith($repoSkills) -and -not (Test-Path ([string]$_.Target))
+    $_.LinkType -eq "Junction" -and -not (Test-Path ([string]$_.Target))
 } | ForEach-Object { [IO.Directory]::Delete($_.FullName) }
 
 Write-Host "Linked ~/.claude to $PSScriptRoot (CLAUDE.md import, agents/ and skills/ junctions)."

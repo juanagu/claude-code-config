@@ -34,10 +34,9 @@ for skill_dir in "$script_dir/skills/"*/; do
   link "$claude_dir/skills/$(basename "$skill_dir")" "${skill_dir%/}"
 done
 
-# A skill that moved from skills/ to skills.txt leaves a link to a folder that no longer exists.
+# A broken link (a skill that moved to skills.txt, or a clone that moved) would block reinstalling it.
 for skill_link in "$claude_dir/skills/"*; do
-  [ -L "$skill_link" ] && [ ! -e "$skill_link" ] || continue
-  case "$(readlink "$skill_link")" in "$script_dir/skills/"*) rm "$skill_link" ;; esac
+  if [ -L "$skill_link" ] && [ ! -e "$skill_link" ]; then rm "$skill_link"; fi
 done
 
 echo "Linked ~/.claude to $script_dir (CLAUDE.md import, agents/ and skills/ symlinks)."
@@ -51,5 +50,5 @@ failed=""
 while read -r repo skill; do
   # </dev/null: npx would otherwise swallow the rest of skills.txt from stdin.
   npx -y skills add "$repo" --skill "$skill" --global --agent claude-code --yes </dev/null || failed="$failed $skill"
-done < <(grep -vE '^[[:space:]]*(#|$)' "$script_dir/skills.txt")
+done < <(tr -d '\r' < "$script_dir/skills.txt" | grep -vE '^[[:space:]]*(#|$)')
 [ -z "$failed" ] || { echo "Failed to install:$failed"; exit 1; }
