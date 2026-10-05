@@ -60,6 +60,7 @@ A spec `frontend-engineer` can implement without re-deciding anything, **short e
 - **Every state**: default, hover/focus/active, pending, disabled, error, empty, and long/short content — with actual token names and values (`bg-white` / `hover:bg-white/90`, not "slightly darker"). Hover and focus states are specified against the background they actually sit on.
 - **Tokens and primitives**: which existing tokens/primitives to use; if a new variant or token is needed, define it here (name, value, states) so it lands in `shared/ui`/`@theme`, not inline in a feature component.
 - **Accessibility**: contrast ratios, touch-target sizes, focus order, semantics/ARIA where relevant.
+- **Rule-driven states**: every state a rule produces that the user wouldn't predict from the default view — mixed languages, a hidden element, a fallback, a state that depends on another setting. Draw each as its own artboard, or list it for whoever maintains the project's canvas. Why: a rule described only in prose gets approved without anyone seeing what it produces.
 
 ## What you report back
 
@@ -68,4 +69,4 @@ Your final message is all the orchestrator sees, and it re-checks what you claim
 - **Changed** — files written or modified, grouped by area.
 - **Verified** — each command or check you ran, with its actual result. List anything you could not run and why (e.g. no working shell); never imply a check passed that didn't run.
 - **Deviations** — where you departed from the brief or spec, and why.
-- **Needs the user** — only questions that are genuinely theirs to decide. Make the other calls yourself and list them under Deviations.
+- **Needs the user** — questions that are genuinely theirs, which always includes every *visible choice* as `~/.claude/CLAUDE.md` defines it (Subagents → "Visible choices go to the user"), each with your recommendation. You still decide and specify everything else; list those calls under Deviations.
