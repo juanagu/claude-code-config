@@ -1,6 +1,6 @@
 # Engineering standards
 
-These apply across all projects unless a project's own CLAUDE.md overrides them. Each rule is stated once; agents and project files point here rather than restating it.
+These apply across all projects unless a project's own CLAUDE.md overrides them. Each rule is stated once; agents and project files point here rather than restating it. A rule that lint or a hook can enforce is enforced there and not restated here: add the mechanism, delete the sentence.
 
 ## Default stack
 
@@ -62,6 +62,8 @@ Organize by feature, not technical type, in every stack — `features/checkout/`
 - Frontend e2e: Playwright for critical flows, running **at least a desktop and a mobile (~390px) project** — a desktop-only suite has never exercised a mobile-first layout. Layout assertions belong in the mobile project too.
 - **UI changes ship with screenshots at both viewports**, for every relevant state (signed in/out, error, pending, empty), linked in the PR. Whoever implements produces them, and not having run the app is a blocker to resolve, not a caveat.
 - Don't mock what you're testing, or so much that the test proves nothing.
+- **A test double for a boundary is checked against the real boundary.** A fake server or a fixture of another service's response is validated in CI against that service's published schema (and its CORS headers, where a browser is involved). A fake that only agrees with itself stays green while the real thing is broken; that is how a response-shape change shipped three times with every suite passing.
+- **UI is verified in every locale the project ships**, not only the default, and a change that crosses a service boundary gets a signed-in pass on the real local stack, reading a record that has data in it. Health endpoints and fakes prove nothing about the boundary.
 - **Never accept a self-reported "tests pass".** Re-run the same commands yourself before calling work done, whether or not the subagent's shell worked.
 - **A running server proves nothing about which code it runs.** After a merge or a dependency change, restart the local stack before demoing or verifying against it: a stale process still answers `200`, so a health check isn't evidence.
 
@@ -107,10 +109,11 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 
 ## Workflow
 
-- **Trunk-based with a PR gate.** Short-lived branches off the default branch, merged within a day or two through a reviewed PR; no direct commits to trunk. Work that can't ship complete in that window lands behind a feature flag.
+- **Trunk-based with a PR gate.** Short-lived branches off the default branch, merged within a day or two through a reviewed PR; no direct commits to trunk. Work that can't ship complete in that window lands behind a feature flag. The `git-guard` hook (`hooks/` in the config repo) refuses commits, merges and pushes on trunk, force-pushes to it and `--no-verify`; a block is an instruction to branch or open a PR, never something to work around.
 - Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`.
 - **Merging is the user's call** unless they grant it. Where they do, merge only after all three: every correctness bug a high `/code-review` pass found is fixed, and a medium pass then reports no correctness bugs (high passes always find nitpicks, so they never converge on their own); CI has finished green, if the repo has CI (if it's still pending, keep waiting, because a wait that times out is never a reason to merge); and you've re-run the checks yourself. Squash-merge and delete the branch.
-- **Use a git worktree when the main checkout is serving a running dev server.** Worktrees share the repo's hooks but not untracked files (`.env`, `.env.local`, `node_modules`), so copy or install what's needed. Remove the worktree once its branch is pushed, never one with unpushed work; for review fixes later, add a fresh one from the remote branch.
+- **Use a git worktree when the main checkout is serving a running dev server.** Worktrees share the repo's hooks but not untracked files (`.env`, `.env.local`, `node_modules`), so copy or install what's needed. Remove the worktree once its branch is pushed, never one with unpushed work; for review fixes later, add a fresh one from the remote branch. Checkouts that serve a dev server are listed in `~/.claude/git-guard.json`, and the hook refuses to switch branches in them.
+- **Push without asking in a project whose CLAUDE.md grants Claude merge rights**; a project that lets you merge has already let you push. Elsewhere, confirm once per branch.
 - Secrets never in git: `.env` ignored, `.env.example` committed with keys and no values.
 - Backend logging is structured, never `console.log`, never secrets or PII.
 

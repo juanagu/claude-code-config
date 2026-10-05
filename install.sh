@@ -2,7 +2,9 @@
 # Links ~/.claude to this repo so there is one copy of the config, not two:
 #   ~/.claude/CLAUDE.md  -> a one-line import of this repo's CLAUDE.md
 #   ~/.claude/agents     -> symlink to this repo's agents/
+#   ~/.claude/hooks      -> symlink to this repo's hooks/
 #   ~/.claude/skills/<x> -> symlink per skill in this repo (others left alone)
+#   ~/.claude/settings.json <- written from settings.template.json when missing (copied, not linked)
 # then installs the third-party skills listed in skills.txt from upstream with `npx skills`.
 # Anything replaced is moved to ~/.claude/backup-<timestamp>/ first. Re-running is safe.
 # On Windows use install.ps1 (junctions need no admin rights; symlinks do).
@@ -30,6 +32,18 @@ if [ ! -f "$claude_dir/CLAUDE.md" ] || [ "$(cat "$claude_dir/CLAUDE.md")" != "$i
 fi
 
 link "$claude_dir/agents" "$script_dir/agents"
+link "$claude_dir/hooks" "$script_dir/hooks"
+
+# settings.json is copied, never linked: Claude Code rewrites it itself. Created only when missing;
+# an existing one is left alone and told what it lacks.
+settings="$claude_dir/settings.json"
+if [ ! -f "$settings" ]; then
+  sed "s|__CLAUDE_DIR__|$claude_dir|g" "$script_dir/settings.template.json" > "$settings"
+  echo "Wrote $settings from settings.template.json."
+elif ! grep -q "hooks/git-guard.mjs" "$settings"; then
+  echo "NOTE: $settings exists and has no git-guard hook. Add the PreToolUse entry from settings.template.json."
+fi
+
 for skill_dir in "$script_dir/skills/"*/; do
   link "$claude_dir/skills/$(basename "$skill_dir")" "${skill_dir%/}"
 done
@@ -39,7 +53,7 @@ for skill_link in "$claude_dir/skills/"*; do
   if [ -L "$skill_link" ] && [ ! -e "$skill_link" ]; then rm "$skill_link"; fi
 done
 
-echo "Linked ~/.claude to $script_dir (CLAUDE.md import, agents/ and skills/ symlinks)."
+echo "Linked ~/.claude to $script_dir (CLAUDE.md import; agents/, hooks/ and skills/ symlinks)."
 [ -d "$backup_dir" ] && echo "Replaced files were moved to $backup_dir"
 
 if ! command -v npx >/dev/null 2>&1; then

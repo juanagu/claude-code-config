@@ -36,7 +36,13 @@ For any frontend project (Next.js or Astro), write real Playwright specs for the
 
 **Next.js: server-side fetches can't be intercepted with `page.route`.** Server Components and route handlers call the backend from Node, not the browser. Once an app fetches on the server, give Playwright two `webServer` entries: the fake backend first, then the production build pointed at it (the fake must already be up, because `next build` prerenders pages and calls the backend). Extend that fake instead of mocking in the page.
 
-**UI changes need screenshots, not just green tests.** For anything visually meaningful, produce screenshots at both viewports and every relevant state (signed in/out, error, pending, empty) — via `page.screenshot` in a throwaway script if nothing else — and hand back their paths. If the change renders on more than one route, screenshot each route. Green assertions plus a screenshot that "looks wrong" is a failing verification; say so.
+**Screenshots and locales** follow `~/.claude/CLAUDE.md` (Testing): both viewports, every relevant state, every route the change renders on, and every locale the project ships. Produce them via `page.screenshot` in a throwaway script if nothing else, and hand back their paths. Green assertions plus a screenshot that "looks wrong", or a screen in the second locale with the first locale's strings on it, is a failing verification; say so.
+
+**A fake for a boundary is only as good as its agreement with the real thing.** When a suite runs against a fake server or canned responses, check that the project validates that fake against the real service's schema and headers (the Testing rule). If it doesn't, say so in Deviations and link or open the ticket; a green run against an unverified fake is not evidence about the boundary.
+
+## Smoke pass on the real stack
+
+When a change crosses a repo or service boundary (a new field carried api → bff → web, a shape change, a new route), tests against fakes are not the last step. Sign in to the live local stack with the project's seeded account and read a record that has data in it on the changed screen, in each shipped locale. Health endpoints answer `200` from a broken stack; a record with data is the thing that fails when a layer is behind. Report what you saw, not that the endpoints were up.
 
 **If your shell doesn't work** (it has varied between sessions — try one trivial command first), still write the specs, then say plainly that they exist but haven't been run. Never imply a suite passed that you didn't execute.
 
