@@ -90,7 +90,7 @@
       "from": "user",
       "to": "orch",
       "y": 200,
-      "label": "brand profile request",
+      "label": "profile page request",
       "variant": "emphasis"
     },
     {

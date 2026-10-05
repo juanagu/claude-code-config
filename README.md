@@ -29,7 +29,7 @@ Edit a file through either path and you edit the same file. Nothing needs syncin
 
 ## A feature, end to end
 
-What the pieces do together. The example is real: the project's brand profile (niche, audience, voice) was first put under Settings because that was the existing hub, needed two disclaimers to explain itself, and moved to its own page a week later. The `designer` rules and the "visible choices go to the user" rule in `CLAUDE.md` came out of it.
+What the pieces do together. The example is real: a profile that describes the user to the product was first put under Settings because that was the existing hub, needed two disclaimers to explain itself, and moved to its own page a week later. The `designer` rules and the "visible choices go to the user" rule in `CLAUDE.md` came out of it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/feature-pipeline-dark.png">
@@ -50,6 +50,29 @@ Where each step leaves its knowledge, so the next session can pick it up cold:
 | report + Decided for you | what was built, deferred, and decided on the user's behalf | the issue (retrofitted), ADRs, the final report |
 
 Three things make this hold up over many sessions. Every subagent ends with the same four-section report, so the orchestrator re-checks claims instead of trusting them. Rules that can be mechanical are mechanical: the hook, lint with size and boundary rules, CI. And the repo is the memory: nothing decided on the user's behalf exists only in chat.
+
+## Every agent, once
+
+The pipeline skips the stages that don't apply, and the profile move needed four of the nine agents: no infra changed and nothing new faced outside input. A slice that needs all nine is a public landing page for the product: a new repo on Cloudflare, legal texts, a redirect that reads a query string, and an experiment behind it in the app. Also real; the brief and the ADR that answers it live in the product's own repos.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/landing-page-dark.png">
+  <img alt="Sequence of the landing page slice: the user asks, product-strategist writes the proposal and the user accepts it, architect answers its handoffs with an ADR and a slice plan, designer produces artboards the user reviews before build, backend and frontend build to one contract, devops sets up the Worker and deploy workflows, the technical writer drafts the privacy and terms texts, qa runs landing to sign-up in both languages, security reviews headers, redirect and legal texts, one PR per repo is merged under the gate, and the user gets a report ending with Decided for you" src="docs/diagrams/landing-page-light.png" width="1000">
+</picture>
+
+*Interactive version: [`docs/diagrams/landing-page.html`](docs/diagrams/landing-page.html), open the raw file in a browser. Source: [`docs/diagrams/landing-page.sequence.json`](docs/diagrams/landing-page.sequence.json).*
+
+What the five agents missing from the shorter example add:
+
+| Agent | Brought in because | Leaves behind |
+| --- | --- | --- |
+| `product-strategist` | a new surface with its own audience and promise, not a feature on an existing screen | a proposal: scope, what the page must say and in what order, handoffs for the technical calls; the user accepts it before anything is designed |
+| `architect-engineer` | the handoffs span repos and hosts (a Worker at the apex, web and bff on one host, first-party counts with no cookie) | one ADR with the alternatives, plus a slice plan with one owner per slice |
+| `devops-engineer` | a Cloudflare Worker, deploy and preview workflows, DNS once the domain exists | the config, not the topology: the ADR fixed the hosts |
+| `technical-writer` | public legal texts in two languages, and docs for running the new repo | drafts from the ADR's disclosure list, which security reviews and a lawyer reads |
+| `security-engineer` | headers and CSP, a redirect, sign-up attribution, a rate-limited experiment, the legal texts | findings fixed before the PR, and the calls that are its own: the terms line, whether acceptance is stored |
+
+The same rules hold at this size. The user saw two things before they were built, the proposal and the artboards; every other call went into the ADR. Each agent reported the same four sections. And the launch checklist lives in the feature doc, so a session months later can pick it up.
 
 ## What's in here
 

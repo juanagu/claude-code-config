@@ -1,0 +1,325 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "A slice that runs every agent",
+    "output": "docs/diagrams/landing-page.html",
+    "viewBox": [
+      1376,
+      860
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User"
+    },
+    {
+      "id": "orch",
+      "type": "frontend",
+      "label": "Orchestrator"
+    },
+    {
+      "id": "strategist",
+      "type": "backend",
+      "label": "strategist"
+    },
+    {
+      "id": "architect",
+      "type": "backend",
+      "label": "architect"
+    },
+    {
+      "id": "designer",
+      "type": "backend",
+      "label": "designer"
+    },
+    {
+      "id": "backend",
+      "type": "backend",
+      "label": "backend"
+    },
+    {
+      "id": "frontend",
+      "type": "backend",
+      "label": "frontend"
+    },
+    {
+      "id": "devops",
+      "type": "cloud",
+      "label": "devops"
+    },
+    {
+      "id": "writer",
+      "type": "backend",
+      "label": "tech writer"
+    },
+    {
+      "id": "qa",
+      "type": "backend",
+      "label": "qa"
+    },
+    {
+      "id": "security",
+      "type": "security",
+      "label": "security"
+    },
+    {
+      "id": "github",
+      "type": "cloud",
+      "label": "GitHub"
+    }
+  ],
+  "segments": [
+    {
+      "from": 190,
+      "to": 373,
+      "label": "Scope and shape"
+    },
+    {
+      "from": 385,
+      "to": 450,
+      "label": "Design"
+    },
+    {
+      "from": 462,
+      "to": 583,
+      "label": "Build"
+    },
+    {
+      "from": 595,
+      "to": 744,
+      "label": "Verify and ship"
+    }
+  ],
+  "messages": [
+    {
+      "id": "request",
+      "from": "user",
+      "to": "orch",
+      "y": 200,
+      "label": "build the landing page now",
+      "variant": "emphasis"
+    },
+    {
+      "id": "scope-brief",
+      "from": "orch",
+      "to": "strategist",
+      "y": 228,
+      "label": "brief, product only"
+    },
+    {
+      "id": "proposal",
+      "from": "strategist",
+      "to": "orch",
+      "y": 256,
+      "label": "proposal: audience, promise, order, handoffs",
+      "variant": "return"
+    },
+    {
+      "id": "accepted",
+      "from": "orch",
+      "to": "user",
+      "y": 284,
+      "label": "proposal + open decisions, accepted"
+    },
+    {
+      "id": "arch-brief",
+      "from": "orch",
+      "to": "architect",
+      "y": 312,
+      "label": "handoffs: stack, hosts, measurement, door"
+    },
+    {
+      "id": "adr",
+      "from": "architect",
+      "to": "orch",
+      "y": 340,
+      "label": "one ADR + slice plan, one owner per slice",
+      "variant": "return"
+    },
+    {
+      "id": "design-brief",
+      "from": "orch",
+      "to": "designer",
+      "y": 395,
+      "label": "artboards at 390/768/1280, EN and ES"
+    },
+    {
+      "id": "approve",
+      "from": "orch",
+      "to": "user",
+      "y": 423,
+      "label": "artboards reviewed before build"
+    },
+    {
+      "id": "backend-brief",
+      "from": "orch",
+      "to": "backend",
+      "y": 472,
+      "label": "literal contract: sign-up attribution, the in-app experiment",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-brief",
+      "from": "orch",
+      "to": "frontend",
+      "y": 500,
+      "label": "same contract + spec: Astro, Worker, CSP, language hand-over",
+      "variant": "emphasis"
+    },
+    {
+      "id": "devops-brief",
+      "from": "orch",
+      "to": "devops",
+      "y": 528,
+      "label": "Worker project, deploy and preview workflows, apex at the name"
+    },
+    {
+      "id": "writer-brief",
+      "from": "orch",
+      "to": "writer",
+      "y": 556,
+      "label": "privacy and terms in EN/ES from the disclosure list; run docs"
+    },
+    {
+      "id": "qa-brief",
+      "from": "orch",
+      "to": "qa",
+      "y": 605,
+      "label": "landing to sign-up, both languages, password and Google, screenshots"
+    },
+    {
+      "id": "security-brief",
+      "from": "orch",
+      "to": "security",
+      "y": 633,
+      "label": "security review: headers, no-cookie tests, the redirect, legal texts",
+      "variant": "security"
+    },
+    {
+      "id": "security-report",
+      "from": "security",
+      "to": "orch",
+      "y": 661,
+      "label": "findings fixed; the lawyer's read stays a publish-day gate",
+      "variant": "return"
+    },
+    {
+      "id": "ship",
+      "from": "orch",
+      "to": "github",
+      "y": 689,
+      "label": "one PR per repo via open-pr; merged once CI is green, under the gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "final-report",
+      "from": "orch",
+      "to": "user",
+      "y": 717,
+      "label": "report + Decided for you",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "orch",
+      "from": 195,
+      "to": 723,
+      "type": "frontend"
+    },
+    {
+      "participant": "strategist",
+      "from": 223,
+      "to": 262,
+      "type": "backend"
+    },
+    {
+      "participant": "architect",
+      "from": 307,
+      "to": 346,
+      "type": "backend"
+    },
+    {
+      "participant": "designer",
+      "from": 390,
+      "to": 401,
+      "type": "backend"
+    },
+    {
+      "participant": "backend",
+      "from": 467,
+      "to": 478,
+      "type": "backend"
+    },
+    {
+      "participant": "frontend",
+      "from": 495,
+      "to": 506,
+      "type": "backend"
+    },
+    {
+      "participant": "devops",
+      "from": 523,
+      "to": 534,
+      "type": "cloud"
+    },
+    {
+      "participant": "writer",
+      "from": 551,
+      "to": 562,
+      "type": "backend"
+    },
+    {
+      "participant": "qa",
+      "from": 600,
+      "to": 611,
+      "type": "backend"
+    },
+    {
+      "participant": "security",
+      "from": 628,
+      "to": 667,
+      "type": "security"
+    },
+    {
+      "participant": "github",
+      "from": 684,
+      "to": 695,
+      "type": "cloud"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Who decides what",
+      "items": [
+        "The user: visible choices, here the proposal and the artboards",
+        "The architect: technical calls, recorded in the ADR with their alternatives",
+        "Security: the terms line and whether acceptance is stored, in its own slice"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Skipped stages, not missing ones",
+      "items": [
+        "The first example above ran four of the nine agents",
+        "This slice touched the edge, legal text and public input, so all nine ran",
+        "Same report shape from every one: changed, verified, deviations, needs the user"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Where it landed",
+      "items": [
+        "Proposal, ADR and feature doc in the product's docs repo",
+        "The artboards on the design canvas; screenshots in the page's repo",
+        "A publish-day checklist in the feature doc, nothing only in chat"
+      ]
+    }
+  ]
+}
