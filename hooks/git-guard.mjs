@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// PreToolUse hook on Bash. Enforces the mechanical half of the trunk-based workflow in
+// PreToolUse hook on Bash and PowerShell. Enforces the mechanical half of the trunk-based workflow in
 // ~/.claude/CLAUDE.md so it never depends on the model remembering a sentence:
-//   - no commit or merge while on trunk, no push straight to trunk, no force-push to it
-//   - no --no-verify
+//   - no commit or merge while on trunk, no push straight to trunk, no force-push to or deletion of it
+//   - no --no-verify (or commit -n)
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server)
 // Blocks with exit code 2 and the reason on stderr. Any error in the hook itself fails open.
 import { execFileSync } from "node:child_process";
@@ -11,6 +11,8 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
+const CD_COMMANDS = new Set(["cd", "pushd", "Set-Location", "sl", "chdir"]);
 const DEFAULT_TRUNKS = ["main", "master"];
 const BLOCK_EXIT_CODE = 2;
 
@@ -25,8 +27,16 @@ function git(dir, args) {
   }).trim();
 }
 
+// Git Bash and WSL write C:\x as /c/x or /mnt/c/x; path.resolve would turn those into C:\c\x.
+function toNativePath(p) {
+  const expanded = p.replace(/^~(?=\/|$)/, homedir());
+  if (process.platform !== "win32") return expanded;
+  const posixDrive = expanded.match(/^\/(?:mnt\/)?([A-Za-z])(\/.*)?$/);
+  return posixDrive ? `${posixDrive[1].toUpperCase()}:${posixDrive[2] ?? "/"}` : expanded;
+}
+
 function normalize(p) {
-  return path.resolve(p).replace(/\\/g, "/").replace(/\/$/, "").toLowerCase();
+  return path.resolve(toNativePath(p)).replace(/\\/g, "/").replace(/\/$/, "").toLowerCase();
 }
 
 function loadProtectedCheckouts() {
@@ -86,18 +96,39 @@ function parseGit(toks) {
   return { sub: toks[i], rest: toks.slice(i + 1), dirOverride };
 }
 
+function positionals(rest) {
+  return rest.filter((a) => !a.startsWith("-"));
+}
+
+function skipsHooks(sub, rest) {
+  if (rest.includes("--no-verify")) return true;
+  return sub === "commit" && rest.some((a) => /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a));
+}
+
 function isForce(rest) {
   return rest.some(
     (a) => a === "-f" || a === "--force" || a.startsWith("--force-with-lease") || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a),
   );
 }
 
-function pushTargetsTrunk(rest, onTrunk, trunk) {
-  if (rest.includes("--delete") || rest.includes("-d")) return false;
-  const refs = rest.filter((a) => !a.startsWith("-"));
-  const named = refs.some((a) => a === trunk || a.endsWith(`:${trunk}`) || (a === "HEAD" && onTrunk));
-  const implicit = refs.length <= 1 && onTrunk;
-  return named || implicit;
+// `+main`, `refs/heads/main`, `HEAD:main` and `feat:refs/heads/main` all land on main.
+function destinationOf(refspec) {
+  const dst = refspec.includes(":") ? refspec.slice(refspec.indexOf(":") + 1) : refspec;
+  return dst.replace(/^\+/, "").replace(/^refs\/heads\//, "");
+}
+
+function pushReason(rest, onTrunk, trunk) {
+  const refs = positionals(rest);
+  const named = refs.some((a) => destinationOf(a) === trunk || (a === "HEAD" && onTrunk));
+  if (rest.includes("--delete") || rest.includes("-d")) {
+    return named ? `Deleting the remote ${trunk} isn't allowed.` : null;
+  }
+  const everything = rest.includes("--all") || rest.includes("--mirror");
+  const implicit = refs.length <= 1 && onTrunk && !rest.includes("--tags");
+  if (!named && !implicit && !everything) return null;
+  return isForce(rest) || refs.some((a) => a.startsWith("+"))
+    ? `Force-pushing ${trunk} rewrites shared history. Not allowed.`
+    : `Pushing straight to ${trunk} bypasses the PR gate. Push a branch and open a PR.`;
 }
 
 function switchReason(toplevel) {
@@ -108,22 +139,23 @@ function switchReason(toplevel) {
   );
 }
 
-function checkoutSwitches(dir, rest) {
-  if (rest.includes("--") || rest.includes("-p") || rest.includes("--patch")) return false;
-  const args = rest.filter((a) => !a.startsWith("-"));
-  if (rest.includes("-b") || rest.includes("-B")) return true;
-  return args.some((a) => isRef(dir, a));
+// The branch a `switch`/`checkout` lands on, or null when it only touches files.
+function switchTarget(dir, sub, rest) {
+  if (rest.includes("--") || rest.includes("-p") || rest.includes("--patch")) return null;
+  const create = rest.findIndex((a) => ["-b", "-B", "-c", "-C"].includes(a));
+  if (create !== -1) return rest[create + 1] ?? null;
+  if (sub === "switch") return positionals(rest)[0] ?? null;
+  const args = positionals(rest);
+  return args.length === 1 && isRef(dir, args[0]) ? args[0] : null;
 }
 
-function checkGit({ sub, rest }, dir, protectedCheckouts) {
-  if (rest.includes("--no-verify")) {
-    return "--no-verify skips the repo's hooks. Fix what the hook reports instead.";
-  }
+function checkGit({ sub, rest }, dir, state) {
+  if (skipsHooks(sub, rest)) return "--no-verify skips the repo's hooks. Fix what the hook reports instead.";
   let branch;
   let toplevel;
   try {
-    branch = git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
     toplevel = git(dir, ["rev-parse", "--show-toplevel"]);
+    branch = state.branches.get(normalize(toplevel)) ?? git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
   } catch {
     return null;
   }
@@ -136,31 +168,29 @@ function checkGit({ sub, rest }, dir, protectedCheckouts) {
   if (sub === "merge" && onTrunk) {
     return `Merging into ${branch} locally bypasses the PR gate. Open a PR and merge it there (gh pr merge --squash --delete-branch).`;
   }
-  if (sub === "push" && pushTargetsTrunk(rest, onTrunk, trunk)) {
-    return isForce(rest)
-      ? `Force-pushing ${trunk} rewrites shared history. Not allowed.`
-      : `Pushing straight to ${trunk} bypasses the PR gate. Push a branch and open a PR.`;
-  }
-  if (protectedCheckouts.includes(normalize(toplevel))) {
-    if (sub === "switch") return switchReason(toplevel);
-    if (sub === "checkout" && checkoutSwitches(dir, rest)) return switchReason(toplevel);
+  if (sub === "push") return pushReason(rest, onTrunk, trunk);
+  if (sub === "switch" || sub === "checkout") {
+    const target = switchTarget(dir, sub, rest);
+    if (!target) return null;
+    if (state.protectedCheckouts.includes(normalize(toplevel))) return switchReason(toplevel);
+    state.branches.set(normalize(toplevel), target);
   }
   return null;
 }
 
 export function check(command, cwd) {
-  const protectedCheckouts = loadProtectedCheckouts();
-  let dir = cwd;
+  const state = { protectedCheckouts: loadProtectedCheckouts(), branches: new Map() };
+  let dir = toNativePath(cwd);
   for (const segment of splitSegments(command)) {
     const toks = tokens(segment);
-    if (toks[0] === "cd" && toks[1]) {
-      dir = path.resolve(dir, toks[1].replace(/^~(?=\/|$)/, homedir()));
+    if (CD_COMMANDS.has(toks[0]) && toks[1]) {
+      dir = path.resolve(dir, toNativePath(toks[1]));
       continue;
     }
     const parsed = parseGit(toks);
     if (!parsed) continue;
-    const repoDir = parsed.dirOverride ? path.resolve(dir, parsed.dirOverride) : dir;
-    const reason = checkGit(parsed, repoDir, protectedCheckouts);
+    const repoDir = parsed.dirOverride ? path.resolve(dir, toNativePath(parsed.dirOverride)) : dir;
+    const reason = checkGit(parsed, repoDir, state);
     if (reason) return reason;
   }
   return null;
@@ -170,7 +200,7 @@ function main() {
   let reason = null;
   try {
     const input = JSON.parse(readFileSync(0, "utf8"));
-    if (input.tool_name !== "Bash") return 0;
+    if (!SHELL_TOOLS.has(input.tool_name)) return 0;
     const command = input.tool_input?.command ?? "";
     if (!/\bgit\b/.test(command)) return 0;
     reason = check(command, input.cwd ?? process.cwd());
