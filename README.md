@@ -55,7 +55,7 @@ Three things make this hold up over many sessions. Every subagent ends with the 
 
 ### `CLAUDE.md`: global standards
 
-These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles and the checkable structure rules; feature folders with a `feature_readme.md`; testing, including that a fake for a boundary is validated against the real one; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
+These load into every session. Default stack and how to choose within it; design defaults (mobile-first for apps, desktop-led for marketing pages, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles and the checkable structure rules; feature folders with a `feature_readme.md`; testing, including that a fake for a boundary is validated against the real one; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
 
 Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs. A rule that lint or a hook can enforce is enforced there and not restated in prose.
 
