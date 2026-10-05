@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "A feature, end to end",
+    "output": "docs/diagrams/feature-pipeline.html",
+    "viewBox": [
+      1080,
+      696
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "visible choices"
+    },
+    {
+      "id": "orch",
+      "type": "frontend",
+      "label": "Orchestrator",
+      "sublabel": "Claude"
+    },
+    {
+      "id": "designer",
+      "type": "backend",
+      "label": "designer",
+      "sublabel": "placement first"
+    },
+    {
+      "id": "backend",
+      "type": "backend",
+      "label": "backend",
+      "sublabel": "contract first"
+    },
+    {
+      "id": "frontend",
+      "type": "backend",
+      "label": "frontend",
+      "sublabel": "to contract"
+    },
+    {
+      "id": "qa",
+      "type": "backend",
+      "label": "qa",
+      "sublabel": "real stack"
+    },
+    {
+      "id": "review",
+      "type": "security",
+      "label": "code-review",
+      "sublabel": "correctness"
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "git-guard",
+      "sublabel": "hook"
+    },
+    {
+      "id": "github",
+      "type": "cloud",
+      "label": "GitHub",
+      "sublabel": "PR, CI, board"
+    }
+  ],
+  "segments": [
+    {
+      "from": 190,
+      "to": 297,
+      "label": "Spec and design"
+    },
+    {
+      "from": 314,
+      "to": 421,
+      "label": "Build and verify"
+    },
+    {
+      "from": 438,
+      "to": 573,
+      "label": "Review and ship"
+    }
+  ],
+  "messages": [
+    {
+      "id": "request",
+      "from": "user",
+      "to": "orch",
+      "y": 200,
+      "label": "brand profile request",
+      "variant": "emphasis"
+    },
+    {
+      "id": "brief",
+      "from": "orch",
+      "to": "designer",
+      "y": 228,
+      "label": "brief, placement open"
+    },
+    {
+      "id": "spec",
+      "from": "designer",
+      "to": "orch",
+      "y": 256,
+      "label": "spec + artboards",
+      "variant": "return"
+    },
+    {
+      "id": "visible-choice",
+      "from": "orch",
+      "to": "user",
+      "y": 284,
+      "label": "artboard + visible choice, approved"
+    },
+    {
+      "id": "contract",
+      "from": "orch",
+      "to": "backend",
+      "y": 324,
+      "label": "literal API contract + issue",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-brief",
+      "from": "orch",
+      "to": "frontend",
+      "y": 352,
+      "label": "same contract + designer spec",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-report",
+      "from": "frontend",
+      "to": "orch",
+      "y": 380,
+      "label": "report + screenshots, both viewports and locales",
+      "variant": "return"
+    },
+    {
+      "id": "verify",
+      "from": "orch",
+      "to": "qa",
+      "y": 408,
+      "label": "verify: mobile project, smoke pass on real stack"
+    },
+    {
+      "id": "review-run",
+      "from": "orch",
+      "to": "review",
+      "y": 448,
+      "label": "/code-review, findings fixed first",
+      "variant": "security"
+    },
+    {
+      "id": "commit-main",
+      "from": "orch",
+      "to": "guard",
+      "y": 476,
+      "label": "git commit on main",
+      "variant": "security"
+    },
+    {
+      "id": "blocked",
+      "from": "guard",
+      "to": "orch",
+      "y": 504,
+      "label": "blocked: branch first",
+      "variant": "return"
+    },
+    {
+      "id": "open-pr",
+      "from": "orch",
+      "to": "github",
+      "y": 532,
+      "label": "branch, push, PR via open-pr; merge once CI is green, under the gate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "final-report",
+      "from": "orch",
+      "to": "user",
+      "y": 560,
+      "label": "report + Decided for you",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "orch",
+      "from": 195,
+      "to": 566,
+      "type": "frontend"
+    },
+    {
+      "participant": "designer",
+      "from": 223,
+      "to": 262,
+      "type": "backend"
+    },
+    {
+      "participant": "backend",
+      "from": 319,
+      "to": 330,
+      "type": "backend"
+    },
+    {
+      "participant": "frontend",
+      "from": 347,
+      "to": 386,
+      "type": "backend"
+    },
+    {
+      "participant": "qa",
+      "from": 403,
+      "to": 414,
+      "type": "backend"
+    },
+    {
+      "participant": "review",
+      "from": 443,
+      "to": 454,
+      "type": "security"
+    },
+    {
+      "participant": "guard",
+      "from": 471,
+      "to": 510,
+      "type": "security"
+    },
+    {
+      "participant": "github",
+      "from": 527,
+      "to": 538,
+      "type": "cloud"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Same report, every agent",
+      "items": [
+        "Changed, Verified, Deviations, Needs the user, from every agent",
+        "The orchestrator re-checks claims instead of trusting them",
+        "Shown once here, for frontend; backend, qa and review report the same way"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Mechanical where possible",
+      "items": [
+        "The hook blocks the commit on main; no rule to remember",
+        "Lint and CI carry the size and boundary rules"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "The repo is the memory",
+      "items": [
+        "Spec lives in the issue, decisions in ADRs",
+        "Nothing decided for the user exists only in chat"
+      ]
+    }
+  ]
+}
