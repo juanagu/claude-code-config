@@ -64,7 +64,7 @@ Installed from upstream, listed in `skills.txt`:
 
 To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run the install script. Each run installs the current upstream version, unpinned, and needs network access. Read a skill's diff before re-running if you care what changed: its `SKILL.md` loads into every session.
 
-`pdf` used to be vendored here and is gone on purpose: its license doesn't allow redistribution, and Claude already ships it as `anthropic-skills:pdf`.
+Two skills that used to be vendored here are gone on purpose: `pdf`, because its license doesn't allow redistribution and Claude already ships it as `anthropic-skills:pdf`; and the `technical-writer` skill, because it was removed upstream and the `technical-writer` agent covers the job.
 
 ## Prerequisites
 
