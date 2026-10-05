@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import path from "node:path";
 
 const PLAYWRIGHT_ROOT = process.env.PLAYWRIGHT_ROOT ?? path.resolve("../cmc-web-pwa");
-const DIAGRAMS = ["setup", "feature-pipeline"];
+const DIAGRAMS = ["setup", "feature-pipeline", "landing-page"];
 const THEMES = ["light", "dark"];
 const SCALE = 2;
 const VIEWPORT = { width: 1600, height: 1200 };
