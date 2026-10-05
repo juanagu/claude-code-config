@@ -26,8 +26,8 @@ Create a pull request that fits this user's trunk-based development model (see `
 - For non-trivial changes, run the `clean-code` skill or invoke `qa-engineer`/relevant subagent per this repo's pipeline before considering the branch ready, if that hasn't already happened earlier in the task.
 
 ### 3. Push the branch
-- Pushing is an explicit-permission action: confirm with the user before `git push`, even if they asked you to "open a PR" (that implies push, but confirm once per session/branch, not per action within it).
-- `git push -u origin <branch-name>`.
+- If the project's CLAUDE.md grants Claude merge rights, push without asking: a project that lets you merge has already let you push. Otherwise confirm once per branch before `git push`, not per action within it.
+- `git push -u origin <branch-name>`. The `git-guard` hook refuses a push to trunk or a force-push to it; if it fires, you are on the wrong branch, so fix that rather than retrying.
 
 ### 4. Write the PR description
 Use conventional-commit-style semantics for the title (`type(scope): summary`, matching the `conventional-commit` skill's types). Structure the body as:

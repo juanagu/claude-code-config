@@ -1,29 +1,117 @@
 # claude-code-config
 
-My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents and skills. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
+My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents, skills and hooks. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
 
 It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
 
 ## How it works
 
-There is one copy of the config, and it's this repo. The install script points `~/.claude` at it:
+There is one copy of the config, and it's this repo. The install script points `~/.claude` at it, and a session reads from `~/.claude` as it always does:
+
+```mermaid
+flowchart LR
+  subgraph repo["claude-code-config (this repo, versioned)"]
+    C["CLAUDE.md<br/>standards"]
+    A["agents/<br/>9 subagents"]
+    H["hooks/<br/>git-guard.mjs"]
+    S["skills/<br/>open-pr, resolve-pr-comments"]
+    T["settings.template.json"]
+    L["skills.txt<br/>third-party list"]
+  end
+  subgraph home["~/.claude (one per machine)"]
+    HC["CLAUDE.md<br/>one-line @import"]
+    HA["agents/ → link"]
+    HH["hooks/ → link"]
+    HS["skills/&lt;name&gt; → link"]
+    HT["skills/&lt;name&gt;<br/>installed from upstream"]
+    HJ["settings.json<br/>copied once, then yours"]
+    HG["git-guard.json<br/>local, unversioned"]
+  end
+  subgraph session["every Claude Code session"]
+    O["orchestrator (Claude)"]
+    SA["subagents"]
+    SK["skills"]
+    GG["git-guard runs before<br/>every Bash call"]
+  end
+  C -- "@import" --> HC --> O
+  A --> HA --> SA
+  H --> HH --> GG
+  S --> HS --> SK
+  L -- "npx skills" --> HT --> SK
+  T -- "install, if missing" --> HJ --> GG
+  HG --> GG
+  P["project CLAUDE.md<br/>(the repo you're in)"] --> O
+```
 
 | `~/.claude/…` | Comes from | How |
 | --- | --- | --- |
 | `CLAUDE.md` | `CLAUDE.md` | a one-line `@` import |
 | `agents/` | `agents/` | junction (Windows) / symlink |
+| `hooks/` | `hooks/` | junction / symlink |
 | `skills/<name>/` for skills written here | `skills/<name>/` | one junction / symlink per skill |
 | `skills/<name>/` for third-party skills | `skills.txt` | installed from upstream with [`npx skills`](https://github.com/vercel-labs/skills) |
+| `settings.json` | `settings.template.json` | **copied**, only when missing; after that it's yours |
+| `git-guard.json` | you | machine-local list of checkouts that serve a dev server |
 
 Edit a file through either path and you edit the same file. Nothing needs syncing; it just needs committing. Third-party skills aren't vendored, so they never go stale here and their licenses stay with their authors.
+
+## A feature, end to end
+
+What the pieces do together. The example is real: the project's brand profile (niche, audience, voice) was first put under Settings because that was the existing hub, needed two disclaimers to explain itself, and moved to its own page a week later. The `designer` rules and the "visible choices go to the user" rule in `CLAUDE.md` came out of it.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant O as Orchestrator
+  participant D as designer
+  participant B as backend-engineer
+  participant F as frontend-engineer
+  participant Q as qa-engineer
+  participant G as git-guard hook
+  participant GH as GitHub
+
+  U->>O: "Users should be able to edit their brand profile" (issue #80)
+  O->>O: enrich the issue: scope, acceptance, links
+  O->>D: brief: the problem, the brief's placement as a hypothesis
+  D-->>O: spec + artboard at 390/768/1280: own page /brand, not Settings; alternatives and why
+  O->>U: artboard + the one visible choice, with a recommendation
+  U-->>O: approved
+  O->>B: literal API contract + the issue
+  B-->>O: Changed / Verified / Deviations / Needs the user
+  O->>F: the same contract + the designer's spec
+  F-->>O: report, with screenshots at 390 and 1280, every state, both locales
+  O->>Q: verify: mobile Playwright project, smoke pass on the real stack
+  Q-->>O: report
+  O->>O: /code-review (correctness, security, architecture rules)
+  O->>G: git commit on main?
+  G-->>O: blocked: branch first
+  O->>GH: branch, push, PR via open-pr
+  GH-->>O: CI green, review clean
+  O->>GH: merge under the gate (only where the project grants it)
+  O->>U: report, ending with "Decided for you"
+```
+
+Where each step leaves its knowledge, so the next session can pick it up cold:
+
+| Step | Produces | Lands in |
+| --- | --- | --- |
+| 2 | the real spec: scope in/out, acceptance criteria, contract if it crosses a service | the GitHub issue |
+| 4 | placement decision with alternatives; artboard | the project's design canvas; an ADR when it changes a pattern |
+| 7–10 | code in a feature folder with its `feature_readme.md`; screenshots | the repo; the PR |
+| 13 | review findings fixed before the PR is called ready | the PR |
+| 14 | a blocked command and the reason | nowhere; it's just prevented |
+| 18 | what was built, deferred, and decided on the user's behalf | the issue (retrofitted), ADRs, the final report |
+
+Three things make this hold up over many sessions. Every subagent ends with the same four-section report, so the orchestrator re-checks claims instead of trusting them. Rules that can be mechanical are mechanical: the hook, lint with size and boundary rules, CI. And the repo is the memory: nothing decided on the user's behalf exists only in chat.
 
 ## What's in here
 
 ### `CLAUDE.md`: global standards
 
-These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles; feature folders with a `feature_readme.md`; testing; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
+These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles and the checkable structure rules; feature folders with a `feature_readme.md`; testing, including that a fake for a boundary is validated against the real one; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
 
-Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs.
+Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs. A rule that lint or a hook can enforce is enforced there and not restated in prose.
 
 ### `agents/`: subagents
 
@@ -34,12 +122,26 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
 | `frontend-engineer` | Next.js/React, Astro and Flutter implementation, plus those stacks' conventions. |
 | `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers, plus those stacks' conventions. |
-| `qa-engineer` | Test strategy and verification, including Playwright at desktop and ~390px. |
+| `qa-engineer` | Test strategy and verification: Playwright at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
 | `security-engineer` | Security review and threat modelling across the stack. |
 | `technical-writer` | READMEs, API docs, ADRs, changelogs. |
 | `devops-engineer` | Docker/Compose, CI/CD, Cloudflare configuration. |
 
 Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`.
+
+### `hooks/`: things Claude cannot forget
+
+| Hook | Event | What it does |
+| --- | --- | --- |
+| `git-guard.mjs` | `PreToolUse` on `Bash` | Refuses a commit, merge or push on trunk, a force-push to trunk, `--no-verify`, and a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree). Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
+
+`node --test hooks/git-guard.test.mjs` runs its tests. The hook needs Node and `git` on `PATH`.
+
+`~/.claude/git-guard.json` is yours and stays out of git:
+
+```json
+{ "protectedCheckouts": ["C:/Users/me/Projects/my-app"] }
+```
 
 ### Skills
 
@@ -47,7 +149,7 @@ Written here, in `skills/`:
 
 | Skill | What it does |
 | --- | --- |
-| `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. |
+| `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
 | `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
 
 Installed from upstream, listed in `skills.txt`:
@@ -66,17 +168,23 @@ To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run t
 
 Two skills that used to be vendored here are gone on purpose: `pdf`, because its license doesn't allow redistribution and Claude already ships it as `anthropic-skills:pdf`; and the `technical-writer` skill, because it was removed upstream and the `technical-writer` agent covers the job.
 
+### `settings.template.json`
+
+The settings the install script writes when `~/.claude/settings.json` doesn't exist: `ENABLE_TOOL_SEARCH`, the CodeGraph MCP allow rule, the `git-guard` hook, the update channel. It's copied rather than linked because Claude Code rewrites the file itself (`/config`, "always allow" prompts), which would break a link, and a file symlink needs admin rights on Windows anyway. An existing `settings.json` is left alone; the script only tells you if the hook is missing from it.
+
+Not in the template, add them yourself if you want them: `"model"`, `"tui": "fullscreen"`, and the [`rtk`](https://github.com/rtk-ai/rtk) hook (`rtk hook claude` under the same `Bash` matcher) that compresses shell output.
+
 ## Prerequisites
 
 The install script doesn't install these.
 
 | Tool | Needed for |
 | --- | --- |
-| `git` | `npx skills` clones each skill's repo. |
-| Node.js (`npx`) | Installing the skills in `skills.txt`. Without it, the script links everything else and skips them. |
+| `git` | `npx skills` clones each skill's repo; the hook queries the current branch. |
+| Node.js | The `git-guard` hook, and `npx` for the skills in `skills.txt`. Without it the script links everything else and skips the skills, and the hook fails open. |
 | [`gh`](https://cli.github.com/), logged in | `open-pr` and `resolve-pr-comments`. |
 | `codegraph` | Optional. The CodeGraph section of `CLAUDE.md` and its `codegraph_explore` MCP tool; without it Claude falls back to grep/Read. |
-| [`rtk`](https://github.com/rtk-ai/rtk) | Optional. Only if you copy my `settings.json` hook (see below). |
+| [`rtk`](https://github.com/rtk-ai/rtk) | Optional. Only if you add its hook to `settings.json`. |
 
 ## Setting up a new machine
 
@@ -85,41 +193,33 @@ The install script doesn't install these.
 3. Run the install script. It's safe to re-run, and anything it replaces is moved to `~/.claude/backup-<timestamp>/` first.
    - Windows: `./install.ps1` (junctions, no admin rights needed)
    - macOS/Linux: `./install.sh`
-4. Recreate `~/.claude/settings.json` if you want my hooks and permissions (see below).
-5. Start a new Claude Code session so it reads the new config.
+4. If you had a `settings.json` already, add the `git-guard` hook entry from `settings.template.json` to it.
+5. Create `~/.claude/git-guard.json` listing the checkouts that serve a dev server, if any.
+6. Start a new Claude Code session so it reads the new config.
 
-Check it worked: `/agents` should list the nine agents, and `/memory` should show the user `CLAUDE.md` importing this repo's.
+Check it worked: `/agents` should list the nine agents, `/memory` should show the user `CLAUDE.md` importing this repo's, and `/hooks` should show `git-guard` under `PreToolUse`.
 
 ## Not in this repo
 
-### `settings.json`
-
-`~/.claude/settings.json` isn't tracked yet. Mine holds:
-
-- a `PreToolUse` hook on `Bash` that runs `rtk hook claude`
-- `mcp__codegraph__*` in `permissions.allow`
-- `"env": { "ENABLE_TOOL_SEARCH": "auto" }`, `"autoUpdatesChannel": "latest"`, `"tui": "fullscreen"`
-
-If it ends up in this repo, the install script should copy it rather than link it. Claude Code rewrites the file itself (`/config`, "always allow" prompts), which can break a link, and on Windows a file symlink needs admin rights anyway.
-
-### Machine and account state
-
-`.credentials.json`, `settings.local.json`, `history.jsonl`, `projects/` (per-project memory and transcripts), `sessions/`, `cache/` and the rest of `~/.claude` stay out of git. They're per-machine, sensitive, or both.
+`.credentials.json`, `settings.local.json`, `git-guard.json`, `history.jsonl`, `projects/` (per-project memory and transcripts), `sessions/`, `cache/` and the rest of `~/.claude` stay out of git. They're per-machine, sensitive, or both.
 
 ## Making changes
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
 - **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. **Third-party skill:** add it to `skills.txt` instead.
 - **New agent:** add `agents/<name>.md`, then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
-- Open a new session to pick up the change, then ship it through a PR (`open-pr`).
+- **New hook:** add it to `hooks/` with a test, add its entry to `settings.template.json`, and add the same entry to your own `settings.json` (the template isn't re-applied). Before adding a rule to `CLAUDE.md`, ask whether it belongs here instead.
+- Open a new session to pick up the change (hooks are read at session start), then ship it through a PR (`open-pr`).
 
 ## Using it yourself
 
-Fork it rather than installing it as-is: `CLAUDE.md` is one person's defaults. The parts most likely to transfer are the agent roster and pipeline, the report shape every agent ends with, and the two PR skills. The stack and design sections are the ones to rewrite.
+Fork it rather than installing it as-is: `CLAUDE.md` is one person's defaults. The parts most likely to transfer are the agent roster and pipeline, the report shape every agent ends with, the hook, and the two PR skills. The stack and design sections are the ones to rewrite.
 
 ## Gotchas
 
-- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to `~/.claude/backup-<timestamp>/`, so anything you meant to keep is easy to miss.
+- **Tools that edit `~/.claude/CLAUDE.md` or `settings.json`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here `CLAUDE.md` should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to `~/.claude/backup-<timestamp>/`, so anything you meant to keep is easy to miss.
+- **Hooks are read at session start.** Editing `settings.json` or a hook file doesn't affect the running session; open a new one.
+- **The hook fails open.** If Node or `git` isn't on `PATH`, or the hook throws, the command runs. It's a guard against forgetting, not a security boundary.
 - **Agent frontmatter must be valid YAML.** If an agent's `description` contains a `: `, quote it, or the agent silently fails to load.
 - **Line endings.** `.gitattributes` keeps `*.sh` as LF. With `core.autocrlf=true` it would otherwise be checked out as CRLF, and `./install.sh` fails under Git Bash or WSL.
 

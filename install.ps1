@@ -3,9 +3,10 @@
   Links ~/.claude to this repo so there is one copy of the config, not two.
 
   - ~/.claude/CLAUDE.md becomes a one-line import of this repo's CLAUDE.md.
-  - ~/.claude/agents becomes a directory junction to this repo's agents/.
+  - ~/.claude/agents and ~/.claude/hooks become directory junctions to this repo's agents/ and hooks/.
   - Each skill in this repo's skills/ is junctioned into ~/.claude/skills/;
     skills installed from elsewhere are left alone.
+  - ~/.claude/settings.json is written from settings.template.json when missing (copied, not linked).
   - The third-party skills listed in skills.txt are installed from upstream
     with `npx skills`.
 
@@ -48,6 +49,20 @@ if (-not ((Test-Path $claudeMd) -and ((Get-Content $claudeMd -Raw).Trim() -eq $i
 }
 
 Set-Junction (Join-Path $claudeDir "agents") (Join-Path $PSScriptRoot "agents")
+Set-Junction (Join-Path $claudeDir "hooks") (Join-Path $PSScriptRoot "hooks")
+
+# settings.json is copied, never linked: Claude Code rewrites it itself. Created only when missing;
+# an existing one is left alone and told what it lacks.
+$settings = Join-Path $claudeDir "settings.json"
+$hookNeedle = "hooks/git-guard.mjs"
+if (-not (Test-Path $settings)) {
+    $template = Get-Content (Join-Path $PSScriptRoot "settings.template.json") -Raw
+    $template = $template -replace "__CLAUDE_DIR__", ($claudeDir -replace "\\", "/")
+    [IO.File]::WriteAllText($settings, $template, (New-Object Text.UTF8Encoding $false))
+    Write-Host "Wrote $settings from settings.template.json."
+} elseif (-not ((Get-Content $settings -Raw) -match [regex]::Escape($hookNeedle))) {
+    Write-Host "NOTE: $settings exists and has no git-guard hook. Add the PreToolUse entry from settings.template.json."
+}
 
 Get-ChildItem (Join-Path $PSScriptRoot "skills") -Directory | ForEach-Object {
     Set-Junction (Join-Path $skillsDir $_.Name) $_.FullName
@@ -58,7 +73,7 @@ Get-ChildItem $skillsDir -Force | Where-Object {
     $_.LinkType -eq "Junction" -and -not (Test-Path ([string]$_.Target))
 } | ForEach-Object { [IO.Directory]::Delete($_.FullName) }
 
-Write-Host "Linked ~/.claude to $PSScriptRoot (CLAUDE.md import, agents/ and skills/ junctions)."
+Write-Host "Linked ~/.claude to $PSScriptRoot (CLAUDE.md import; agents/, hooks/ and skills/ junctions)."
 if (Test-Path $backupDir) { Write-Host "Replaced files were moved to $backupDir" }
 
 if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
