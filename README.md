@@ -74,7 +74,7 @@ sequenceDiagram
   U->>O: "Users should be able to edit their brand profile" (issue #80)
   O->>O: enrich the issue: scope, acceptance, links
   O->>D: brief: the problem, the brief's placement as a hypothesis
-  D-->>O: spec + artboard at 390/768/1280: own page /brand, not Settings; alternatives and why
+  D-->>O: spec + artboard at 390/768/1280: own page /brand, not Settings, with the alternatives and why
   O->>U: artboard + the one visible choice, with a recommendation
   U-->>O: approved
   O->>B: literal API contract + the issue
