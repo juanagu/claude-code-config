@@ -23,7 +23,7 @@ These come up often enough in this stack to name explicitly:
 
 ## How you work
 
-1. Read enough of the existing codebase to know what's already established — don't propose a structure that fights the grain of the repo without a stated reason.
+1. Read enough of the existing codebase to know what's already established — don't propose a structure that fights the grain of the repo without a stated reason. When the grain itself breaks `~/.claude/CLAUDE.md`'s Structure rules, that is the stated reason: say so, design the new work to the rules, and plan the way out for the existing code instead of extending it.
 2. Name the real tradeoff. Every non-trivial choice has one (coupling vs duplication, consistency vs simplicity, now vs later cost) — state it, don't hide behind "best practice."
 3. Prefer the boring, well-understood option unless there's a concrete, stated reason to do otherwise — not a hypothetical future need.
 4. When a decision is worth remembering, write a short ADR: context, decision, consequences. A few paragraphs, not a document. Follow the repo's existing convention for where such docs live, or ask if there isn't one. When the boundary/flow is non-obvious from prose alone (new service boundaries, a request lifecycle, a data pipeline), use the `archify` skill to produce an accompanying architecture/workflow/sequence diagram rather than ASCII art — author the JSON source and run `archify validate`/`deliver` yourself; if your shell doesn't work, hand the source back unvalidated and say so.

@@ -38,6 +38,17 @@ Match what an existing project already uses instead of forcing this stack on it.
 - SOLID, in practice: one reason to change per module; extend by adding code rather than special-casing working code; implementations substitutable without the caller knowing which it got; narrow interfaces; depend on abstractions (that's why services depend on repository interfaces, not the Mongo driver).
 - Clean Architecture: inner layers (domain, use-cases) never import outer ones (frameworks, DB drivers, HTTP, UI). Business logic is framework-agnostic and unit-testable with nothing running. I/O sits behind ports owned by the inner layer; adapters implement them. Controllers, routes and widgets are thin.
 
+### Structure rules (checkable)
+
+Principles drift; these are concrete enough to fail a review or a lint run. Each stack's agent file shows the folder layout that satisfies them.
+
+- **`shared/` needs two importers.** Code moves to `shared/` (or `core/`) only when a second feature imports it. Until then it lives in the feature that uses it, even if it "looks reusable".
+- **A feature owns the calls it makes.** A call to another service, a database or a third-party API is a narrow port in the feature (only the operations that feature uses) plus an adapter beside it. `shared/` holds only the transport: the HTTP client, auth headers, the error envelope. A module receives the narrowest interface it uses, never a client with every operation in the system.
+- **Dependency direction.** Features never import another feature's internals; `shared/` never imports a feature; inner layers never import outer ones.
+- **Size.** About 300 lines per file and 40 per function. Past either, split before adding to it.
+- **Don't extend a violation.** Match the surrounding code's style, not its structural mistakes. When the code you touch already breaks these rules: fix it in the same PR if the fix is small (one file or function); otherwise build your change the right way beside it, open a refactor issue, and list it under Deviations. "The file already did it this way" is never the reason.
+- **Enforced where possible.** Repos carry boundary and size lint rules (`eslint-plugin-boundaries` or `dependency-cruiser`, `max-lines`, `max-lines-per-function`) in CI. Run lint before reporting work done.
+
 ## Feature folders
 
 Organize by feature, not technical type, in every stack — `features/checkout/` holding its own components/hooks, routes/services/repositories, or presentation/domain/data — with cross-feature code in `shared/` or `core/`. The internal layering is stack-specific (see each agent) and grows with the feature: don't add a `domain/` folder to a feature with no real domain logic yet.
@@ -91,7 +102,7 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 5. **security-engineer** — auth, payments, external input, data exposure.
 6. **technical-writer** — when user- or developer-facing docs change.
 7. **devops-engineer** — when Docker, CI/CD or Cloudflare config changes.
-8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics).
+8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics). **Every review brief includes architecture** alongside correctness and security: layering, `shared/` vs feature placement, interface width, file and function size, comment history (the structure rules above). A new violation is a request for changes, not a nit.
 
 ## Workflow
 
