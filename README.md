@@ -8,40 +8,12 @@ It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Fl
 
 There is one copy of the config, and it's this repo. The install script points `~/.claude` at it, and a session reads from `~/.claude` as it always does:
 
-```mermaid
-flowchart LR
-  subgraph repo["claude-code-config (this repo, versioned)"]
-    C["CLAUDE.md<br/>standards"]
-    A["agents/<br/>9 subagents"]
-    H["hooks/<br/>git-guard.mjs"]
-    S["skills/<br/>open-pr, resolve-pr-comments"]
-    T["settings.template.json"]
-    L["skills.txt<br/>third-party list"]
-  end
-  subgraph home["~/.claude (one per machine)"]
-    HC["CLAUDE.md<br/>one-line @import"]
-    HA["agents/ → link"]
-    HH["hooks/ → link"]
-    HS["skills/&lt;name&gt; → link"]
-    HT["skills/&lt;name&gt;<br/>installed from upstream"]
-    HJ["settings.json<br/>copied once, then yours"]
-    HG["git-guard.json<br/>local, unversioned"]
-  end
-  subgraph session["every Claude Code session"]
-    O["orchestrator (Claude)"]
-    SA["subagents"]
-    SK["skills"]
-    GG["git-guard runs before<br/>every Bash call"]
-  end
-  C -- "@import" --> HC --> O
-  A --> HA --> SA
-  H --> HH --> GG
-  S --> HS --> SK
-  L -- "npx skills" --> HT --> SK
-  T -- "install, if missing" --> HJ --> GG
-  HG --> GG
-  P["project CLAUDE.md<br/>(the repo you're in)"] --> O
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/setup-dark.png">
+  <img alt="Flow from the repo through ~/.claude into a Claude Code session: CLAUDE.md is imported, agents, hooks and skills are linked, settings.json is copied once, git-guard runs before every shell call" src="docs/diagrams/setup-light.png" width="1000">
+</picture>
+
+*Interactive version: [`docs/diagrams/setup.html`](docs/diagrams/setup.html), open the raw file in a browser. Source: [`docs/diagrams/setup.architecture.json`](docs/diagrams/setup.architecture.json), rendered with the `archify` skill and captured by `docs/diagrams/capture.mjs`.*
 
 | `~/.claude/…` | Comes from | How |
 | --- | --- | --- |
@@ -59,49 +31,23 @@ Edit a file through either path and you edit the same file. Nothing needs syncin
 
 What the pieces do together. The example is real: the project's brand profile (niche, audience, voice) was first put under Settings because that was the existing hub, needed two disclaimers to explain itself, and moved to its own page a week later. The `designer` rules and the "visible choices go to the user" rule in `CLAUDE.md` came out of it.
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor U as User
-  participant O as Orchestrator
-  participant D as designer
-  participant B as backend-engineer
-  participant F as frontend-engineer
-  participant Q as qa-engineer
-  participant G as git-guard hook
-  participant GH as GitHub
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/feature-pipeline-dark.png">
+  <img alt="Sequence of a feature: the user asks, the orchestrator briefs the designer, the user approves the artboard, backend then frontend build to one contract, qa verifies on the real stack, code-review runs, git-guard blocks a commit on main, the PR is opened and merged under the gate, and the user gets a report ending with Decided for you" src="docs/diagrams/feature-pipeline-light.png" width="1000">
+</picture>
 
-  U->>O: "Users should be able to edit their brand profile" (issue #80)
-  O->>O: enrich the issue: scope, acceptance, links
-  O->>D: brief: the problem, the brief's placement as a hypothesis
-  D-->>O: spec + artboard at 390/768/1280: own page /brand, not Settings, with the alternatives and why
-  O->>U: artboard + the one visible choice, with a recommendation
-  U-->>O: approved
-  O->>B: literal API contract + the issue
-  B-->>O: Changed / Verified / Deviations / Needs the user
-  O->>F: the same contract + the designer's spec
-  F-->>O: report, with screenshots at 390 and 1280, every state, both locales
-  O->>Q: verify: mobile Playwright project, smoke pass on the real stack
-  Q-->>O: report
-  O->>O: /code-review (correctness, security, architecture rules)
-  O->>G: git commit on main?
-  G-->>O: blocked: branch first
-  O->>GH: branch, push, PR via open-pr
-  GH-->>O: CI green, review clean
-  O->>GH: merge under the gate (only where the project grants it)
-  O->>U: report, ending with "Decided for you"
-```
+*Interactive version: [`docs/diagrams/feature-pipeline.html`](docs/diagrams/feature-pipeline.html), open the raw file in a browser. Source: [`docs/diagrams/feature-pipeline.sequence.json`](docs/diagrams/feature-pipeline.sequence.json), rendered with the `archify` skill and captured by `docs/diagrams/capture.mjs`.*
 
 Where each step leaves its knowledge, so the next session can pick it up cold:
 
-| Step | Produces | Lands in |
+| Message | Produces | Lands in |
 | --- | --- | --- |
-| 2 | the real spec: scope in/out, acceptance criteria, contract if it crosses a service | the GitHub issue |
-| 4 | placement decision with alternatives; artboard | the project's design canvas; an ADR when it changes a pattern |
-| 7–10 | code in a feature folder with its `feature_readme.md`; screenshots | the repo; the PR |
-| 13 | review findings fixed before the PR is called ready | the PR |
-| 14 | a blocked command and the reason | nowhere; it's just prevented |
-| 18 | what was built, deferred, and decided on the user's behalf | the issue (retrofitted), ADRs, the final report |
+| the request arrives | the real spec: scope in/out, acceptance criteria, contract if it crosses a service | the GitHub issue, enriched before dispatch |
+| spec + artboards | placement decision with alternatives; artboards at 390/768/1280 | the project's design canvas; an ADR when it changes a pattern |
+| contract, build, verify | code in a feature folder with its `feature_readme.md`; screenshots at both viewports and locales | the repo; the PR |
+| /code-review | findings fixed before the PR is called ready | the PR |
+| git commit on main | a blocked command and the reason | nowhere; it's just prevented |
+| report + Decided for you | what was built, deferred, and decided on the user's behalf | the issue (retrofitted), ADRs, the final report |
 
 Three things make this hold up over many sessions. Every subagent ends with the same four-section report, so the orchestrator re-checks claims instead of trusting them. Rules that can be mechanical are mechanical: the hook, lint with size and boundary rules, CI. And the repo is the memory: nothing decided on the user's behalf exists only in chat.
 

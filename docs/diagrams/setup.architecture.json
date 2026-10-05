@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "How the config reaches a session",
+    "output": "docs/diagrams/setup.html",
+    "quality_profile": "showcase",
+    "legend": {
+      "mode": "all",
+      "entries": {
+        "backend": { "label": "Versioned in this repo" },
+        "database": { "label": "Machine-local in ~/.claude" },
+        "frontend": { "label": "Loaded into the session" },
+        "security": { "label": "Guard" },
+        "external": { "label": "Outside this repo" }
+      }
+    }
+  },
+  "components": [
+    { "id": "repo-claude", "type": "backend", "label": "CLAUDE.md", "sublabel": "standards, pipeline, workflow", "pos": [40, 60], "size": [200, 64] },
+    { "id": "repo-agents", "type": "backend", "label": "agents/", "sublabel": "9 subagents", "pos": [40, 150], "size": [200, 64] },
+    { "id": "repo-skills", "type": "backend", "label": "skills/", "sublabel": "open-pr, resolve-pr-comments", "pos": [40, 240], "size": [200, 64] },
+    { "id": "repo-skillstxt", "type": "backend", "label": "skills.txt", "sublabel": "third-party skill list", "pos": [40, 330], "size": [200, 64] },
+    { "id": "repo-hooks", "type": "security", "label": "hooks/", "sublabel": "git-guard.mjs + tests", "pos": [40, 420], "size": [200, 64] },
+    { "id": "repo-template", "type": "backend", "label": "settings.template.json", "sublabel": "hook entry, permissions", "pos": [40, 510], "size": [200, 64] },
+
+    { "id": "home-claude", "type": "database", "label": "CLAUDE.md", "sublabel": "one-line @import", "pos": [390, 60], "size": [200, 64] },
+    { "id": "home-agents", "type": "database", "label": "agents/", "sublabel": "junction or symlink", "pos": [390, 150], "size": [200, 64] },
+    { "id": "home-skills", "type": "database", "label": "skills/<name>/", "sublabel": "junction per skill", "pos": [390, 240], "size": [200, 64] },
+    { "id": "home-upstream", "type": "database", "label": "skills/<name>/", "sublabel": "installed from upstream", "pos": [390, 330], "size": [200, 64] },
+    { "id": "home-hooks", "type": "database", "label": "hooks/", "sublabel": "junction or symlink", "pos": [390, 420], "size": [200, 64] },
+    { "id": "home-settings", "type": "database", "label": "settings.json", "sublabel": "copied once, then yours", "pos": [390, 510], "size": [200, 64] },
+    { "id": "home-guard", "type": "database", "label": "git-guard.json", "sublabel": "checkouts serving a dev server", "pos": [390, 600], "size": [200, 64] },
+
+    { "id": "session-orch", "type": "frontend", "label": "Orchestrator", "sublabel": "Claude, every session", "pos": [740, 60], "size": [200, 64] },
+    { "id": "session-agents", "type": "frontend", "label": "Subagents", "sublabel": "run on dispatch", "pos": [740, 150], "size": [200, 64] },
+    { "id": "session-skills", "type": "frontend", "label": "Skills", "sublabel": "run on invoke", "pos": [740, 240], "size": [200, 64] },
+    { "id": "session-guard", "type": "security", "label": "git-guard", "sublabel": "before every shell call", "pos": [740, 420], "size": [200, 64] },
+
+    { "id": "project-claude", "type": "external", "label": "Project CLAUDE.md", "sublabel": "the repo you work in", "pos": [1090, 60], "size": [200, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "claude-code-config (git)", "wraps": ["repo-claude", "repo-agents", "repo-skills", "repo-skillstxt", "repo-hooks", "repo-template"] },
+    { "kind": "region", "label": "~/.claude (one per machine)", "wraps": ["home-claude", "home-agents", "home-skills", "home-upstream", "home-hooks", "home-settings", "home-guard"] },
+    { "kind": "region", "label": "A Claude Code session", "wraps": ["session-orch", "session-agents", "session-skills", "session-guard"] }
+  ],
+  "connections": [
+    { "id": "import-claude", "from": "repo-claude", "to": "home-claude", "label": "@import", "variant": "emphasis" },
+    { "id": "link-agents", "from": "repo-agents", "to": "home-agents", "label": "install links" },
+    { "id": "link-skills", "from": "repo-skills", "to": "home-skills", "label": "install links" },
+    { "id": "install-upstream", "from": "repo-skillstxt", "to": "home-upstream", "label": "npx skills", "variant": "dashed" },
+    { "id": "link-hooks", "from": "repo-hooks", "to": "home-hooks", "label": "install links", "variant": "security" },
+    { "id": "copy-settings", "from": "repo-template", "to": "home-settings", "label": "copy if missing", "variant": "dashed" },
+
+    { "id": "load-claude", "from": "home-claude", "to": "session-orch", "label": "loaded at start", "variant": "emphasis" },
+    { "id": "load-agents", "from": "home-agents", "to": "session-agents", "label": "on dispatch" },
+    { "id": "load-skills", "from": "home-skills", "to": "session-skills", "label": "on invoke" },
+    { "id": "load-upstream", "from": "home-upstream", "to": "session-skills", "label": "on invoke", "fromSide": "right", "toSide": "bottom" },
+    { "id": "run-hook", "from": "home-hooks", "to": "session-guard", "label": "runs", "variant": "security" },
+    { "id": "register-hook", "from": "home-settings", "to": "session-guard", "label": "registers", "fromSide": "right", "toSide": "left" },
+    { "id": "guard-list", "from": "home-guard", "to": "session-guard", "label": "protected list", "variant": "dashed", "fromSide": "right", "toSide": "bottom" },
+
+    { "id": "project-load", "from": "project-claude", "to": "session-orch", "label": "loaded at start", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "One copy", "items": ["Edit through the repo or ~/.claude: same file", "Nothing syncs; it only needs committing", "Third-party skills stay upstream, unvendored"] },
+    { "dot": "rose", "title": "What cannot be forgotten", "items": ["git-guard runs before every Bash or PowerShell call", "Blocks trunk commits, pushes, force-pushes, --no-verify", "Blocks a branch switch in a checkout serving a dev server"] },
+    { "dot": "slate", "title": "Per machine", "items": ["settings.json is copied once, then owned locally", "git-guard.json lists this machine's served checkouts", "Hooks are read at session start"] }
+  ]
+}
