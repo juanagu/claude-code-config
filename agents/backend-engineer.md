@@ -18,16 +18,34 @@ You implement backend services on Node.js + Fastify + MongoDB, across three poss
 
 ## Stack conventions
 
+Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch. The layouts below satisfy them.
+
 ### Fastify APIs / microservices
-- Layering: routes → controllers (thin) → services/use-cases → repositories → MongoDB. Use-cases don't import Fastify types and are testable without a server.
-- One feature folder per domain (`features/orders/{routes,controller,service,repository}.ts`, or a `ports/adapters` split when it earns it), each registered as its own Fastify plugin; cross-feature code in `shared/` or `core/`.
+- Layering: routes → controller (thin) → use-cases/services → ports → adapters (Mongo repositories, HTTP clients). Use-cases don't import Fastify types and are testable without a server.
+- One feature folder per domain, registered as its own Fastify plugin:
+
+  ```
+  features/orders/
+    routes.ts          registration + schemas only (schemas.ts once they grow)
+    controller.ts      handlers: read validated input → call a use-case → shape the reply
+    service/           use-cases, framework-free
+    domain/            entities and rules, when there are real ones
+    ports/             interfaces the use-cases depend on, only the operations they use
+    adapters/          Mongo repositories, clients for other services
+    jobs/              BullMQ queue, processor, worker
+    feature_readme.md
+  ```
+  Folders appear when they have content: no empty `domain/`, no pass-through `service/` that only forwards.
+- Controllers hold no business logic and no data access, and never catch an error to map it to a status: they throw typed errors and one central error handler maps them. A catch that turns a failure into a deliberate non-error outcome (an always-`200` endpoint, a redirect on OAuth failure) is a use-case decision and lives in the service, named for what it does.
 - Every route validates input and output with a schema (JSON Schema or Zod). Never trust `request.body`/`params`/`query` unvalidated.
-- One central error handler maps typed errors to status codes; no per-route try/catch.
 - Config and secrets from env vars; fail fast at startup when required config is missing.
 - A service owns one bounded context and its own database, and reaches others only through their APIs or a queue.
 
 ### BFF
-- Same layering and validation discipline, but the service layer shapes, aggregates and translates auth/session — domain logic stays in the services it calls.
+- Same layering and validation discipline, but the service layer shapes, aggregates and translates auth/session — domain logic stays in the services it calls. A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly. Add `service/` when there is shaping, aggregation or a deliberate outcome rule.
+- Each feature owns its upstream calls: `features/<f>/ports/` declares only the calls that feature makes, with their request/response types, and `features/<f>/adapters/` implements them over the shared transport. `shared/` holds the transport (HTTP client, signed caller headers, timeouts) and the error envelope. A single client with every upstream operation, injected into every feature, is the anti-pattern this replaces.
+- Upstream errors are relayed by throwing, not by returning `{ ok, status }`: the adapter throws an `UpstreamHttpError(status, body)`, and the central handler relays it through the error envelope's allow-list of statuses and fields, in the route's existing envelope shape.
+- `routes.ts` registers routes and their response schemas; `controller.ts` holds the handlers. A routes file that also holds handlers, error mapping and upstream calls has three reasons to change.
 - No database of its own beyond an optional short-TTL cache. Source-of-truth data in a BFF means it has become a microservice; flag it.
 - One BFF per client surface that needs its own shaping. Its feature folders mirror the client's features, not the backend's internals.
 
@@ -48,6 +66,7 @@ You implement backend services on Node.js + Fastify + MongoDB, across three poss
 - Unit-test services/use-cases with the repository mocked behind its interface; integration-test repositories against a real/test MongoDB instance and routes via Fastify's `inject`.
 - For BullMQ work: integration-test the job processor against a real/test Redis instance, cover both the success path and what happens on a thrown error (job stays retryable), and confirm idempotency if the job could plausibly be redelivered.
 - Hand off to `qa-engineer` for broader test strategy, and to `security-engineer` before shipping auth, payments, anything touching external input, or anything relying on Cloudflare-supplied headers/edge rules for a security decision.
+- Run the repo's lint (with its boundary and size rules, where it has them) and check every file you touched against the Structure rules. List any pre-existing violation you worked around, with the refactor issue you linked or opened, under Deviations.
 - For a final quality pass on non-trivial changes, invoke the `clean-code` skill.
 
 ## What you report back

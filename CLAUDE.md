@@ -38,6 +38,18 @@ Match what an existing project already uses instead of forcing this stack on it.
 - SOLID, in practice: one reason to change per module; extend by adding code rather than special-casing working code; implementations substitutable without the caller knowing which it got; narrow interfaces; depend on abstractions (that's why services depend on repository interfaces, not the Mongo driver).
 - Clean Architecture: inner layers (domain, use-cases) never import outer ones (frameworks, DB drivers, HTTP, UI). Business logic is framework-agnostic and unit-testable with nothing running. I/O sits behind ports owned by the inner layer; adapters implement them. Controllers, routes and widgets are thin.
 
+### Structure rules (checkable)
+
+Principles drift; these are concrete enough to fail a review or a lint run. Each stack's agent file shows the layout that satisfies them.
+
+- **Feature code in `shared/` needs two importing features.** Feature logic moves to `shared/` (or `core/`) only when a second feature imports it; until then it lives in the feature that uses it, even if it "looks reusable". Exempt: app infrastructure imported by the app's composition root (config, logger, transport, error envelope, session codec) and the design system (`shared/ui`, tokens), which follow their own rules above.
+- **A feature owns the calls it makes.** Each call to another service, a database or a third-party API goes through a narrow port owned by the feature: an interface plus an adapter on the backend, a module of narrow functions in `lib/` on the frontend. The port declares only the operations that feature uses, and the request/response types for them live beside it. `shared/` holds only the transport (HTTP client, auth headers, timeouts) and the error envelope. A module receives the narrowest interface it uses: a Fastify plugin's options name the feature's port type, never a client with every operation in the system.
+- **Dependency direction.** A feature imports another feature only through its public surface: the exports its `feature_readme.md` lists under "exposed interface" (or its `index.ts`, where the repo uses one). `shared/` never imports a feature; inner layers never import outer ones.
+- **Size, for new and rewritten code.** About 300 lines per file and 40 per function, counting no blanks or comments. Exempt: tests, pure data/type/schema files (i18n dictionaries, generated types), a framework's plugin wrapper (a Fastify plugin function whose body only registers routes), and components, which get ~200 lines in the frontend agent's rules.
+- **Don't extend a violation.** Match the surrounding code's style, not its structural mistakes; "the file already did it this way" is never the reason. When the code you touch already breaks a rule, this takes precedence over Size: fix it in the same PR only if the fix is small (under ~50 changed lines, no behaviour or contract change, covered by existing tests). Otherwise build your change the right way beside it, link the existing refactor issue or open one, and list it under Deviations. Never start an unasked refactor of a file you only needed to add to.
+- **Contracts aren't refactors.** Response and error-envelope shapes a client depends on are contracts: changing one is a tracked change with its own issue and the client updated together, never a side effect of tidying.
+- **Enforced by lint once a repo opts in.** A repo adopts boundary and size rules (`eslint-plugin-boundaries` or `dependency-cruiser`, `max-lines`, `max-lines-per-function`) through its own ticket, with a baseline: today's offenders listed as per-file overrides that may only shrink. Where a repo has them, run lint before reporting work done. Never add a disable comment to get past them.
+
 ## Feature folders
 
 Organize by feature, not technical type, in every stack — `features/checkout/` holding its own components/hooks, routes/services/repositories, or presentation/domain/data — with cross-feature code in `shared/` or `core/`. The internal layering is stack-specific (see each agent) and grows with the feature: don't add a `domain/` folder to a feature with no real domain logic yet.
@@ -91,7 +103,7 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 5. **security-engineer** — auth, payments, external input, data exposure.
 6. **technical-writer** — when user- or developer-facing docs change.
 7. **devops-engineer** — when Docker, CI/CD or Cloudflare config changes.
-8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics).
+8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics). **Every review brief includes architecture** alongside correctness and security: layering, `shared/` vs feature placement, interface width, file and function size, comment history (the structure rules above). A new violation is a request for changes, not a nit.
 
 ## Workflow
 
