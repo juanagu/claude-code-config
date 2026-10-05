@@ -1,47 +1,128 @@
 # claude-code-config
 
-Personal [Claude Code](https://claude.com/claude-code) setup: global engineering standards, subagent definitions, and custom skills. Kept here so it's easy to bring onto a new machine instead of rebuilding it from scratch.
+My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents and skills. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
+
+It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
+
+## How it works
+
+There is one copy of the config, and it's this repo. The install script points `~/.claude` at it:
+
+| `~/.claude/…` | Comes from | How |
+| --- | --- | --- |
+| `CLAUDE.md` | `CLAUDE.md` | a one-line `@` import |
+| `agents/` | `agents/` | junction (Windows) / symlink |
+| `skills/<name>/` for skills written here | `skills/<name>/` | one junction / symlink per skill |
+| `skills/<name>/` for third-party skills | `skills.txt` | installed from upstream with [`npx skills`](https://github.com/vercel-labs/skills) |
+
+Edit a file through either path and you edit the same file. Nothing needs syncing; it just needs committing. Third-party skills aren't vendored, so they never go stale here and their licenses stay with their authors.
 
 ## What's in here
 
-- **`CLAUDE.md`** — global engineering standards: default stack and how to choose within it, design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and primitives), code principles, feature folders, testing, the subagent roster and pipelines, workflow, task tracking, feature flags. Stack-specific conventions live in the agent that implements that stack.
-- **`agents/`** — 9 subagent definitions (`~/.claude/agents/`):
-  - `product-strategist` — turns a raw platform idea into a scoped plan (features, users, business model, roadmap). No implementation opinions.
-  - `architect-engineer` — system/module design decisions, ADRs, BFF/microservice/queue topology calls.
-  - `frontend-engineer` — Next.js/React, Astro, Flutter UI implementation; holds those stacks' conventions.
-  - `backend-engineer` — Fastify BFFs/APIs/microservices, MongoDB repositories, BullMQ workers; holds those stacks' conventions.
-  - `devops-engineer` — Docker/Compose, CI/CD, Cloudflare (WAF/cache/DNS) configuration and conventions.
-  - `qa-engineer` — test strategy and verification, including Playwright e2e.
-  - `designer` — where a feature belongs, UI/UX decisions and design systems, with Airbnb as the UX reference.
-  - `security-engineer` — security review across the whole stack.
-  - `technical-writer` — READMEs, API docs, ADRs, changelogs.
-- **`skills/`** — custom skills (`~/.claude/skills/`): `clean-code`, `conventional-commit`, `find-skills`, `frontend-design`, `pdf`, `security-threat-model`, `technical-writer`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`.
-- **`install.ps1`** / **`install.sh`** — link `~/.claude` to this repo (an `@` import for `CLAUDE.md`, junctions/symlinks for `agents/` and each skill), backing up whatever they replace.
+### `CLAUDE.md`: global standards
 
-## Not included on purpose
+These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles; feature folders with a `feature_readme.md`; testing; the subagent roster and the feature pipeline; trunk-based workflow; task tracking; feature flags; CodeGraph.
 
-- `archify` (architecture/workflow/sequence diagram skill) — it's a third-party skill from [tt-a1i/archify](https://github.com/tt-a1i/archify), vendored here would just go stale. Reinstall it instead:
-  ```
-  npx skills add tt-a1i/archify -g
-  ```
-  If that fails because `git` isn't installed/on PATH yet, download it manually instead:
-  ```powershell
-  Invoke-WebRequest -Uri "https://github.com/tt-a1i/archify/archive/refs/heads/main.zip" -OutFile archify.zip
-  Expand-Archive archify.zip -DestinationPath archify-extract
-  Copy-Item -Recurse archify-extract\archify-main\archify "$HOME\.claude\skills\archify"
-  cd "$HOME\.claude\skills\archify"
-  npm install --omit=dev
-  node bin/archify.mjs doctor   # should report "Archify is ready."
-  ```
-- Anything under `~/.claude` that's machine/account-specific or sensitive: `.credentials.json`, `history.jsonl`, `sessions/`, `projects/` (per-project memory and transcripts), `cache/`, `settings.local.json`.
+Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs.
 
-## Setting up on a new machine
+### `agents/`: subagents
 
-1. Clone this repo.
-2. Windows: `./install.ps1`. macOS/Linux: `./install.sh`.
-3. Reinstall `archify` if you use it (see above).
-4. Restart Claude Code (or start a new session) so it picks up the updated `~/.claude` config.
+| Agent | Use it for |
+| --- | --- |
+| `product-strategist` | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
+| `architect-engineer` | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
+| `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
+| `frontend-engineer` | Next.js/React, Astro and Flutter implementation, plus those stacks' conventions. |
+| `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers, plus those stacks' conventions. |
+| `qa-engineer` | Test strategy and verification, including Playwright at desktop and ~390px. |
+| `security-engineer` | Security review and threat modelling across the stack. |
+| `technical-writer` | READMEs, API docs, ADRs, changelogs. |
+| `devops-engineer` | Docker/Compose, CI/CD, Cloudflare configuration. |
 
-## Keeping this in sync
+Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`.
 
-There is only one copy. After running the install script, `~/.claude/CLAUDE.md` imports this repo's `CLAUDE.md` and `~/.claude/agents` and the skills point into this repo, so editing either path edits the same file. Commit changes here through a PR like any other repo. (It used to be copy-based, and the two copies drifted apart.)
+### Skills
+
+Written here, in `skills/`:
+
+| Skill | What it does |
+| --- | --- |
+| `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. |
+| `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
+
+Installed from upstream, listed in `skills.txt`:
+
+| Skill | Source | What it does |
+| --- | --- | --- |
+| `conventional-commit` | [github/awesome-copilot](https://github.com/github/awesome-copilot) | Conventional Commits messages. |
+| `clean-code` | [sickn33/antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) | Clean Code refactoring pass. |
+| `frontend-design` | [anthropics/skills](https://github.com/anthropics/skills) | Distinctive, production-grade UI. |
+| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Audits UI against web interface guidelines (contrast, target size, semantics). |
+| `security-threat-model` | [openai/skills](https://github.com/openai/skills) | Repo-grounded threat model written as Markdown. |
+| `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Finds and installs other skills. |
+| `archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | Architecture, sequence and data-flow diagrams as standalone HTML. |
+
+To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run the install script. Each run installs the current upstream version, unpinned, and needs network access. Read a skill's diff before re-running if you care what changed: its `SKILL.md` loads into every session.
+
+Two skills that used to be vendored here are gone on purpose: `pdf`, because its license doesn't allow redistribution and Claude already ships it as `anthropic-skills:pdf`; and the `technical-writer` skill, because it was removed upstream and the `technical-writer` agent covers the job.
+
+## Prerequisites
+
+The install script doesn't install these.
+
+| Tool | Needed for |
+| --- | --- |
+| `git` | `npx skills` clones each skill's repo. |
+| Node.js (`npx`) | Installing the skills in `skills.txt`. Without it, the script links everything else and skips them. |
+| [`gh`](https://cli.github.com/), logged in | `open-pr` and `resolve-pr-comments`. |
+| `codegraph` | Optional. The CodeGraph section of `CLAUDE.md` and its `codegraph_explore` MCP tool; without it Claude falls back to grep/Read. |
+| [`rtk`](https://github.com/rtk-ai/rtk) | Optional. Only if you copy my `settings.json` hook (see below). |
+
+## Setting up a new machine
+
+1. Install the prerequisites.
+2. Clone this repo somewhere permanent, since `~/.claude` will point into it. Moving it later means re-running the install.
+3. Run the install script. It's safe to re-run, and anything it replaces is moved to `~/.claude/backup-<timestamp>/` first.
+   - Windows: `./install.ps1` (junctions, no admin rights needed)
+   - macOS/Linux: `./install.sh`
+4. Recreate `~/.claude/settings.json` if you want my hooks and permissions (see below).
+5. Start a new Claude Code session so it reads the new config.
+
+Check it worked: `/agents` should list the nine agents, and `/memory` should show the user `CLAUDE.md` importing this repo's.
+
+## Not in this repo
+
+### `settings.json`
+
+`~/.claude/settings.json` isn't tracked yet. Mine holds:
+
+- a `PreToolUse` hook on `Bash` that runs `rtk hook claude`
+- `mcp__codegraph__*` in `permissions.allow`
+- `"env": { "ENABLE_TOOL_SEARCH": "auto" }`, `"autoUpdatesChannel": "latest"`, `"tui": "fullscreen"`
+
+If it ends up in this repo, the install script should copy it rather than link it. Claude Code rewrites the file itself (`/config`, "always allow" prompts), which can break a link, and on Windows a file symlink needs admin rights anyway.
+
+### Machine and account state
+
+`.credentials.json`, `settings.local.json`, `history.jsonl`, `projects/` (per-project memory and transcripts), `sessions/`, `cache/` and the rest of `~/.claude` stay out of git. They're per-machine, sensitive, or both.
+
+## Making changes
+
+- Edit the files here, or through `~/.claude/`, which is the same thing.
+- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. **Third-party skill:** add it to `skills.txt` instead.
+- **New agent:** add `agents/<name>.md`, then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
+- Open a new session to pick up the change, then ship it through a PR (`open-pr`).
+
+## Using it yourself
+
+Fork it rather than installing it as-is: `CLAUDE.md` is one person's defaults. The parts most likely to transfer are the agent roster and pipeline, the report shape every agent ends with, and the two PR skills. The stack and design sections are the ones to rewrite.
+
+## Gotchas
+
+- **Tools that edit `~/.claude/CLAUDE.md`.** Some installers (CodeGraph's, for one) append their instructions to the user `CLAUDE.md`, and `codegraph upgrade` does it again, along with a `UserPromptSubmit` hook in `settings.json`. Here that file should hold only the `@` import: move anything useful into this repo's `CLAUDE.md` and delete the rest. Otherwise it loads twice, and the next install run moves it to `~/.claude/backup-<timestamp>/`, so anything you meant to keep is easy to miss.
+- **Agent frontmatter must be valid YAML.** If an agent's `description` contains a `: `, quote it, or the agent silently fails to load.
+- **Line endings.** `.gitattributes` keeps `*.sh` as LF. With `core.autocrlf=true` it would otherwise be checked out as CRLF, and `./install.sh` fails under Git Bash or WSL.
+
+## License
+
+[MIT](LICENSE) for everything written here. Skills in `skills.txt` are installed from their own repos under their own licenses.
