@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // PreToolUse hook on Bash and PowerShell. Enforces the mechanical half of the trunk-based workflow in
 // ~/.claude/CLAUDE.md so it never depends on the model remembering a sentence:
-//   - no commit or merge while on trunk, no push straight to trunk, no force-push to or deletion of it
-//   - no --no-verify (or commit -n)
+//   - no commit, merge, rebase, cherry-pick, revert or am while on trunk
+//   - no push straight to trunk, no force-push to or deletion of it
+//   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server)
 // Blocks with exit code 2 and the reason on stderr. Any error in the hook itself fails open.
 import { execFileSync } from "node:child_process";
@@ -13,6 +14,9 @@ import { fileURLToPath } from "node:url";
 
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
 const CD_COMMANDS = new Set(["cd", "pushd", "Set-Location", "sl", "chdir"]);
+const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "revert", "am"]);
+const CREATE_FLAGS = new Set(["-b", "-B", "-c", "-C", "--orphan"]);
+const DISABLING_CONFIG = /^(core\.hookspath|commit\.gpgsign|gpg\.)/i;
 const DEFAULT_TRUNKS = ["main", "master"];
 const BLOCK_EXIT_CODE = 2;
 
@@ -46,14 +50,6 @@ function loadProtectedCheckouts() {
   return (config.protectedCheckouts ?? []).map(normalize);
 }
 
-function trunkOf(dir) {
-  try {
-    return git(dir, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]).replace(/^origin\//, "");
-  } catch {
-    return null;
-  }
-}
-
 function isRef(dir, name) {
   try {
     git(dir, ["rev-parse", "--verify", "--quiet", `${name}^{commit}`]);
@@ -63,11 +59,47 @@ function isRef(dir, name) {
   }
 }
 
+function trunkOf(dir, branch) {
+  try {
+    return git(dir, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]).replace(/^origin\//, "");
+  } catch {
+    return DEFAULT_TRUNKS.find((t) => t === branch || isRef(dir, t)) ?? DEFAULT_TRUNKS[0];
+  }
+}
+
+// Splits on shell separators outside quotes, and skips heredoc bodies (a commit message is not a command).
 function splitSegments(command) {
-  return command
-    .split(/\s*(?:&&|\|\||;|\||\n)\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const segments = [];
+  let current = "";
+  let quote = null;
+  let i = 0;
+  while (i < command.length) {
+    const ch = command[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      current += ch;
+      i++;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+      i++;
+    } else if (ch === "\n" && /<<-?\s*['"]?(\w+)['"]?/.test(current)) {
+      const delimiter = current.match(/<<-?\s*['"]?(\w+)['"]?/)[1];
+      const end = command.indexOf(`\n${delimiter}`, i);
+      segments.push(current);
+      current = "";
+      i = end === -1 ? command.length : end + delimiter.length + 1;
+    } else if (ch === "\n" || ch === ";" || ch === "|" || command.startsWith("&&", i)) {
+      segments.push(current);
+      current = "";
+      i += command.startsWith("&&", i) || command.startsWith("||", i) ? 2 : 1;
+    } else {
+      current += ch;
+      i++;
+    }
+  }
+  segments.push(current);
+  return segments.map((s) => s.trim()).filter(Boolean);
 }
 
 function tokens(segment) {
@@ -81,27 +113,22 @@ function parseGit(toks) {
   if (toks[i] !== "git") return null;
   i++;
   let dirOverride = null;
+  const configs = [];
   while (i < toks.length && toks[i].startsWith("-")) {
-    if (toks[i] === "-C") {
-      dirOverride = toks[i + 1];
-      i += 2;
-      continue;
-    }
-    if (toks[i] === "-c") {
-      i += 2;
-      continue;
-    }
-    i++;
+    if (toks[i] === "-C") dirOverride = toks[i + 1];
+    if (toks[i] === "-c") configs.push(toks[i + 1] ?? "");
+    i += toks[i] === "-C" || toks[i] === "-c" ? 2 : 1;
   }
-  return { sub: toks[i], rest: toks.slice(i + 1), dirOverride };
+  return { sub: toks[i], rest: toks.slice(i + 1), dirOverride, configs };
 }
 
 function positionals(rest) {
-  return rest.filter((a) => !a.startsWith("-"));
+  return rest.filter((a) => !a.startsWith("-") || a === "-");
 }
 
-function skipsHooks(sub, rest) {
+function skipsHooks(sub, rest, configs) {
   if (rest.includes("--no-verify")) return true;
+  if (configs.some((c) => DISABLING_CONFIG.test(c))) return true;
   return sub === "commit" && rest.some((a) => /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a));
 }
 
@@ -117,9 +144,13 @@ function destinationOf(refspec) {
   return dst.replace(/^\+/, "").replace(/^refs\/heads\//, "");
 }
 
+function isHead(ref) {
+  return ref === "HEAD" || ref === "@" || /^(HEAD|@)[~^]/.test(ref);
+}
+
 function pushReason(rest, onTrunk, trunk) {
   const refs = positionals(rest);
-  const named = refs.some((a) => destinationOf(a) === trunk || (a === "HEAD" && onTrunk));
+  const named = refs.some((a) => destinationOf(a) === trunk || (isHead(a) && onTrunk));
   if (rest.includes("--delete") || rest.includes("-d")) {
     return named ? `Deleting the remote ${trunk} isn't allowed.` : null;
   }
@@ -140,17 +171,21 @@ function switchReason(toplevel) {
 }
 
 // The branch a `switch`/`checkout` lands on, or null when it only touches files.
+// "-" (the previous branch) and a branch that exists only on origin both count as a switch.
 function switchTarget(dir, sub, rest) {
   if (rest.includes("--") || rest.includes("-p") || rest.includes("--patch")) return null;
-  const create = rest.findIndex((a) => ["-b", "-B", "-c", "-C"].includes(a));
-  if (create !== -1) return rest[create + 1] ?? null;
-  if (sub === "switch") return positionals(rest)[0] ?? null;
+  const create = rest.findIndex((a) => CREATE_FLAGS.has(a));
+  if (create !== -1) return rest[create + 1] ?? "-";
   const args = positionals(rest);
-  return args.length === 1 && isRef(dir, args[0]) ? args[0] : null;
+  if (sub === "switch") return args[0] ?? null;
+  if (args.length !== 1) return null;
+  const [arg] = args;
+  const looksLikeBranch = arg === "-" || isRef(dir, arg) || isRef(dir, `origin/${arg}`) || !existsSync(path.resolve(dir, arg));
+  return looksLikeBranch ? arg : null;
 }
 
-function checkGit({ sub, rest }, dir, state) {
-  if (skipsHooks(sub, rest)) return "--no-verify skips the repo's hooks. Fix what the hook reports instead.";
+function checkGit({ sub, rest, configs }, dir, state) {
+  if (skipsHooks(sub, rest, configs)) return "--no-verify (or a config override of hooks/signing) is not allowed. Fix what the hook reports instead.";
   let branch;
   let toplevel;
   try {
@@ -159,21 +194,18 @@ function checkGit({ sub, rest }, dir, state) {
   } catch {
     return null;
   }
-  const trunk = trunkOf(dir) ?? (DEFAULT_TRUNKS.includes(branch) ? branch : DEFAULT_TRUNKS[0]);
+  const trunk = trunkOf(dir, branch);
   const onTrunk = branch === trunk;
 
-  if (sub === "commit" && onTrunk) {
-    return `You are on ${branch}. Direct commits to trunk aren't allowed: git switch -c <type>/<name> first, then open a PR.`;
-  }
-  if (sub === "merge" && onTrunk) {
-    return `Merging into ${branch} locally bypasses the PR gate. Open a PR and merge it there (gh pr merge --squash --delete-branch).`;
+  if (WRITES_COMMITS.has(sub) && onTrunk) {
+    return `You are on ${branch}. Writing commits to trunk locally (${sub}) bypasses the PR gate: git switch -c <type>/<name> first, then open a PR.`;
   }
   if (sub === "push") return pushReason(rest, onTrunk, trunk);
   if (sub === "switch" || sub === "checkout") {
     const target = switchTarget(dir, sub, rest);
     if (!target) return null;
     if (state.protectedCheckouts.includes(normalize(toplevel))) return switchReason(toplevel);
-    state.branches.set(normalize(toplevel), target);
+    if (target !== "-") state.branches.set(normalize(toplevel), target);
   }
   return null;
 }

@@ -19,10 +19,10 @@ function sh(dir, args) {
   return execFileSync("git", ["-C", dir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
-function makeRepo(root, name) {
+function makeRepo(root, name, trunk = "main") {
   const dir = path.join(root, name);
   mkdirSync(dir);
-  sh(dir, ["init", "-q", "-b", "main"]);
+  sh(dir, ["init", "-q", "-b", trunk]);
   sh(dir, ["config", "user.email", "t@example.com"]);
   sh(dir, ["config", "user.name", "t"]);
   writeFileSync(path.join(dir, "a.txt"), "a\n");
@@ -108,6 +108,37 @@ describe("trunk protection (any repo)", () => {
     allowed("git checkout -b feat/y && git commit -m x && git push -u origin feat/y", plainRepo);
   });
   it("allows deleting a remote branch", () => allowed("git push origin --delete feat/x", plainRepo));
+  it("blocks push origin @ and HEAD~0 while on trunk", () => {
+    blocked("git push origin @", plainRepo);
+    blocked("git push origin HEAD~0:main", plainRepo);
+  });
+  it("blocks cherry-pick, rebase and revert on trunk", () => {
+    blocked("git cherry-pick feat/x", plainRepo);
+    blocked("git rebase feat/x", plainRepo);
+    blocked("git revert HEAD", plainRepo);
+  });
+  it("blocks -c overrides that disable hooks or signing", () =>
+    onBranch(plainRepo, () => {
+      blocked("git -c core.hooksPath=/dev/null commit -m x", plainRepo);
+      blocked("git -c commit.gpgsign=false commit -m x", plainRepo);
+      allowed("git -c user.name=t commit -m x", plainRepo);
+    }));
+  it("does not read shell separators or flags inside a quoted commit message", () =>
+    onBranch(plainRepo, () => {
+      allowed('git commit -m "chore: block --no-verify; add tests"', plainRepo);
+      allowed("git commit -m 'fix: a | b && git push origin main'", plainRepo);
+    }));
+  it("does not read a heredoc body as commands", () =>
+    onBranch(plainRepo, () => {
+      allowed("git commit -q -F - <<'EOF'\nfeat: x\n\ngit push origin main\n--no-verify\nEOF\ngit status", plainRepo);
+    }));
+  it("falls back to master when origin/HEAD is unknown", () => {
+    const repo = makeRepo(home, "master-repo", "master");
+    sh(repo, ["switch", "-q", "feat/x"]);
+    blocked("git push origin master", repo);
+    blocked("git push origin HEAD:master", repo);
+    allowed("git push origin feat/x", repo);
+  });
   it("allows read-only git", () => allowed("git status && git log --oneline -5", plainRepo));
   it("honours git -C <dir>", () => blocked(`git -C "${plainRepo}" commit -m x`, home));
   it("honours cd in a compound command", () => blocked(`cd "${plainRepo}" && git commit -m x`, home));
@@ -132,6 +163,16 @@ describe("branch switching in a protected checkout", () => {
   it("allows restoring files with --", () => allowed("git checkout -- a.txt", protectedRepo));
   it("allows restoring a path that is not a ref", () => allowed("git checkout a.txt", protectedRepo));
   it("allows restoring a path from a ref", () => allowed("git checkout HEAD a.txt", protectedRepo));
+  it("blocks switching back with -", () => {
+    blocked("git switch -", protectedRepo);
+    blocked("git checkout -", protectedRepo);
+  });
+  it("blocks checking out a branch that exists only on origin, and --orphan", () => {
+    sh(protectedRepo, ["update-ref", "refs/remotes/origin/feat/remote", "HEAD"]);
+    blocked("git checkout feat/remote", protectedRepo);
+    blocked("git checkout feat/not-anywhere", protectedRepo);
+    blocked("git checkout --orphan fresh", protectedRepo);
+  });
   it("allows switching in a repo that is not protected", () => allowed("git switch feat/x", plainRepo));
 });
 

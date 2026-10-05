@@ -133,7 +133,7 @@ Each one ends with the same report shape (changed, verified, deviations, needs t
 
 | Hook | Event | What it does |
 | --- | --- | --- |
-| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses a commit, merge or push on trunk, a force-push to or deletion of trunk, `--no-verify`, and a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree). Follows `cd` and `git -C` inside a compound command, including Git Bash paths on Windows. Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
+| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses a commit, merge, rebase, cherry-pick or revert on trunk, a push straight to trunk, a force-push to or deletion of it, `--no-verify` (and config overrides that disable hooks or signing), and a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree). Follows `cd` and `git -C` inside a compound command, including Git Bash paths on Windows. Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
 
 `node --test hooks/git-guard.test.mjs` runs its tests. The hook needs Node and `git` on `PATH`.
 
