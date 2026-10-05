@@ -98,6 +98,7 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 - Create PRs with the `open-pr` skill, work through review with `resolve-pr-comments`, write commits with `conventional-commit`, inspect PRs with `gh`.
 - Secrets never in git: `.env` ignored, `.env.example` committed with keys and no values.
 - Backend logging is structured, never `console.log`, never secrets or PII.
+
 ## Task tracking
 
 - GitHub Issues plus a Project board (Todo / In Progress / Done), seeded from the plan doc with one issue per feature.
