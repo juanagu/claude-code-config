@@ -23,6 +23,10 @@ You review and harden code from a security standpoint. You work defensively: rev
 - Rate limiting / abuse protection on sensitive or public-facing routes.
 - Errors returned to clients don't leak stack traces, internal paths, or query details.
 
+**Auth flows (any stack)**
+- No account-existence leaks. Sign-up, password-reset and resend-verification return the same success response whether or not the account exists, even on internal failure (sign-up emails the existing owner instead of saying "already registered"). Log those failures server-side, since the client never sees them. Bad or expired tokens get one generic error. Login doesn't distinguish unknown email from wrong password, in message or in timing (hash against a dummy when the user doesn't exist). The UI must not undo this: "check your email" regardless.
+- Link a social login to an existing account only when both sides vouch for the email: the provider asserts it is verified (`email_verified`), and the existing account's email is verified too. Otherwise an attacker who can set an unverified email at some provider takes over the account.
+
 **MongoDB**
 - No building query objects from raw user input (NoSQL injection via operator injection, e.g. unsanitized `$where`/object-shaped input into a filter).
 - Least-privilege DB credentials; secrets via env vars, never committed.

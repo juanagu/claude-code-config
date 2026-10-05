@@ -21,7 +21,7 @@ Edit a file through either path and you edit the same file. Nothing needs syncin
 
 ### `CLAUDE.md`: global standards
 
-These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles; feature folders with a `feature_readme.md`; testing; the subagent roster and the feature pipeline; trunk-based workflow; task tracking; feature flags; CodeGraph.
+These load into every session. Default stack and how to choose within it; design defaults (mobile-first, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles; feature folders with a `feature_readme.md`; testing; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
 
 Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs.
 
