@@ -41,7 +41,7 @@ on:
 # `github.ref`, and GitHub replaces a pending run in a group whatever
 # cancel-in-progress says, so without it a merge could cancel the weekly run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -67,6 +67,13 @@ jobs:
       # Web apps only: the describes tagged @smoke (sign-in, home, the header
       # at 390, the route guards), `playwright test --grep @smoke`. Keep it
       # under a few minutes. Delete these steps in a service repo.
+      # The Chromium download is cached by Playwright version; the system packages
+      # `--with-deps` installs are not, and take about half a minute.
+      - uses: actions/cache@v4
+        if: env.RUN_SMOKE == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
         if: env.RUN_SMOKE == 'true'
       - run: npm run test:e2e:smoke
@@ -84,6 +91,12 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+      # The Chromium download is cached by Playwright version; the system packages
+      # `--with-deps` installs are not, and take about half a minute.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
