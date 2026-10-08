@@ -127,7 +127,9 @@ jobs:
     steps:
       - name: Open the issue, or comment on the open one
         run: |
-          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          # Phrase search also matches a longer title (v1.2.0 finds v1.2.0-rc1), so filter on the exact one.
+          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "[.[] | select(.title | startswith(\"$TITLE (\"))][0].number // empty")
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "Still red on $(date -u +%Y-%m-%d): $RUN_URL"
           else
