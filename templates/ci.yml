@@ -1,0 +1,97 @@
+name: CI
+
+# Two tiers, because GitHub Actions minutes are budgeted (~/.claude/CLAUDE.md,
+# Workflow): a fast tier on every PR push and every push to main, and the full
+# browser suite only where it pays. Copy this file into a new repo's
+# .github/workflows/ and delete the jobs or steps the repo has nothing for.
+#
+#   - pull_request and push to main: lint, typecheck, unit and fast integration
+#     tests, build, and a Playwright smoke set if the repo is a web app. A newer
+#     push cancels the older run on a PR, never on main or a tag.
+#   - tag v* (a release), the weekly schedule and a manual run: the full
+#     Playwright suite too. A red scheduled run opens an issue, since no PR is
+#     there to turn red.
+#   - a change to docs or feature readmes alone runs nothing. A doc a test
+#     reads must be re-included (`- 'docs/the-file.md'` after the negation).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/feature_readme.md'
+      - '!README.md'
+      - '!AGENTS.md'
+      - '!CLAUDE.md'
+  pull_request:
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/feature_readme.md'
+      - '!README.md'
+      - '!AGENTS.md'
+      - '!CLAUDE.md'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # Web apps only: a handful of specs that cover sign-in, home, the header
+      # at 390 and the route guards. Keep it under a few minutes; the rest of
+      # the suite runs in e2e-full. Delete these two steps in a service repo.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:smoke
+
+  e2e-full:
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Open an issue when the scheduled run fails
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Weekly e2e run failed on main ($(date -u +%Y-%m-%d))" \
+            --body "The scheduled full Playwright run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

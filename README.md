@@ -137,6 +137,10 @@ To add one, add a `<github repo> <skill name>` line to `skills.txt` and re-run t
 
 Two skills that used to be vendored here are gone on purpose: `pdf`, because its license doesn't allow redistribution and Claude already ships it as `anthropic-skills:pdf`; and the `technical-writer` skill, because it was removed upstream and the `technical-writer` agent covers the job.
 
+### `templates/`: starting points for a new repo
+
+`ci.yml` is the two-tier GitHub Actions workflow the Workflow section of `CLAUDE.md` describes: lint, typecheck, tests, build and a Playwright smoke set on every PR push and push to `main`; the full suite on a `v*` tag, weekly and on a manual run, opening an issue when the weekly run fails. Copy it into `.github/workflows/`, delete what the repo has nothing for. Nothing links it into `~/.claude`.
+
 ### `settings.template.json`
 
 The settings the install script writes when `~/.claude/settings.json` doesn't exist: `ENABLE_TOOL_SEARCH`, the CodeGraph MCP allow rule, the `git-guard` hook, the update channel. It's copied rather than linked because Claude Code rewrites the file itself (`/config`, "always allow" prompts), which would break a link, and a file symlink needs admin rights on Windows anyway. An existing `settings.json` is left alone; the script only tells you if the hook is missing from it.
