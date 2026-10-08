@@ -53,7 +53,7 @@ Pull the actual summary/changes from `git log main..HEAD` and `git diff main...H
 
 ### 5. Create the PR
 - `gh pr create --title "<type(scope): summary>" --body "<description from step 4>"`.
-- Default to a regular (non-draft) PR unless the user says the work is still in progress, in which case use `--draft`.
+- Open it as a draft (`--draft`): a draft runs no CI, so minutes are spent only once the work is done. Mark it ready (`gh pr ready`) when the work is finished and validated locally; that is what runs the full PR checks. Open it ready only if the user asks.
 - If the user mentioned specific reviewers or the repo has an obvious CODEOWNERS pattern, add `--reviewer`; otherwise skip it rather than guessing.
 - Report the PR URL back to the user.
 
