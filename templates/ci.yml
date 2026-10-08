@@ -108,12 +108,13 @@ jobs:
             test-results/
           retention-days: 7
 
-  # A red weekly run has no PR to turn red, so it reports to an issue: one per
-  # regression (a comment on the open one, a new one otherwise). The workflow
-  # token has no project scope, so the issue still goes on the board by hand.
-  report-weekly:
-    needs: [e2e-full]
-    if: ${{ always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure') }}
+  # A red weekly or release-tag run has no PR to turn red, so it reports to an
+  # issue: one per regression (a comment on the open one, a new one otherwise).
+  # The workflow token has no project scope, so the issue goes on the board by
+  # hand. `cancelled` covers a job killed by its timeout-minutes.
+  report-full-tier:
+    needs: [checks, e2e-full]
+    if: ${{ always() && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -122,14 +123,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      TITLE: 'Weekly e2e run failed on main'
+      TITLE: 'Full CI tier failed on ${{ github.event_name == 'schedule' && 'main (weekly run)' || github.ref_name }}'
     steps:
       - name: Open the issue, or comment on the open one
         run: |
-          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "Still red on $(date -u +%Y-%m-%d): $RUN_URL"
           else
             gh issue create --title "$TITLE ($(date -u +%Y-%m-%d))" \
-              --body "The scheduled full Playwright run failed: $RUN_URL. Add this issue to the project board."
+              --body "The full tier failed: $RUN_URL. Add this issue to the project board."
           fi
