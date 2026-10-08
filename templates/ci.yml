@@ -123,7 +123,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      TITLE: 'Full CI tier failed on ${{ github.event_name == 'schedule' && 'main (weekly run)' || github.ref_name }}'
+      TITLE: "Full CI tier failed on ${{ github.event_name == 'schedule' && 'main (weekly run)' || github.ref_name }}"
     steps:
       - name: Open the issue, or comment on the open one
         run: |
