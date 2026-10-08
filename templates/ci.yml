@@ -5,9 +5,11 @@ name: CI
 # browser suite only where it pays. Copy this file into a new repo's
 # .github/workflows/ and delete the jobs or steps the repo has nothing for.
 #
-#   - pull_request and push to main: lint, typecheck, unit and fast integration
-#     tests, build, and a Playwright smoke set if the repo is a web app. A newer
-#     push cancels the older run on a PR, never on main or a tag.
+#   - pull_request (drafts included; marking a PR ready re-runs it against
+#     current main) and push to main: lint, typecheck, unit and fast
+#     integration tests, build, and a Playwright smoke set if the repo is a
+#     web app. A newer push cancels the older run on a PR, never on main or a
+#     tag.
 #   - tag v* (a release), the weekly schedule and a manual run: the full
 #     Playwright suite too. A red scheduled run opens an issue, since no PR is
 #     there to turn red.
@@ -25,6 +27,7 @@ on:
       - '!AGENTS.md'
       - '!CLAUDE.md'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - '**'
       - '!docs/**'
