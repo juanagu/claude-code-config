@@ -1,0 +1,17 @@
+{
+  "name": "claude-code-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Claude Code global config: standards, agents, hooks and skills. `npx -y github:juanagu/claude-code-config` clones it and links ~/.claude to the clone.",
+  "type": "module",
+  "repository": "github:juanagu/claude-code-config",
+  "bin": {
+    "claude-code-config": "bin/bootstrap.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs hooks/*.test.mjs"
+  }
+}
