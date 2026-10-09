@@ -11,8 +11,8 @@ import { expandHome } from "../scripts/install/paths.mjs";
 const repoDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const bootstrap = join(repoDir, "bin", "bootstrap.mjs");
 
-test("--dir and --repo are the bootstrapper's, the rest passes through, a leading -- is dropped", () => {
-  const parsed = parseBootstrapArgs(["--", "--dir", "~/cfg", "--yes", "--repo", "https://x/y.git", "--claude-dir", "/c"], {});
+test("--dir and --repo are the bootstrapper's, the rest passes through, every -- is dropped", () => {
+  const parsed = parseBootstrapArgs(["--", "--dir", "~/cfg", "--", "--yes", "--repo", "https://x/y.git", "--claude-dir", "/c"], {});
   assert.deepEqual(parsed, { dir: "~/cfg", repo: "https://x/y.git", passthrough: ["--yes", "--claude-dir", "/c"] });
 });
 

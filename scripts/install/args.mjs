@@ -31,7 +31,7 @@ const BOOLEAN_FLAGS = {
 
 export function parseArgs(argv) {
   const flags = { claudeDir: null, update: false, yes: false, noOptional: false, ask: false, skipSkills: false, rtk: null, codegraph: null, help: false };
-  const args = argv[0] === "--" ? argv.slice(1) : argv;
+  const args = argv.filter((arg) => arg !== "--");
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--claude-dir") {

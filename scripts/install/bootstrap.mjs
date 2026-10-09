@@ -1,8 +1,9 @@
 // The pure parts of bin/bootstrap.mjs, kept apart so they can be tested without git.
 
 // `--dir` and `--repo` are the bootstrapper's own; everything else goes to install.mjs.
+// npx may or may not swallow the `--` separator, so it is dropped wherever it appears.
 export function parseBootstrapArgs(argv, env = {}) {
-  const args = argv[0] === "--" ? argv.slice(1) : argv;
+  const args = argv.filter((arg) => arg !== "--");
   const parsed = { dir: env.CLAUDE_CODE_CONFIG_DIR ?? null, repo: null, passthrough: [] };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--dir") parsed.dir = requireValue(args, i++);
