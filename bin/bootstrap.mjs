@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// `npx -y github:juanagu/claude-code-config [--dir <path>] [--repo <url>] [install.mjs options]`
+// `npx -y github:juanagu/claude-code-config [--dir <path>] [--repo <clone URL or path>] [install.mjs options]`
 // clones a permanent copy of the repo, or fast-forwards the one it finds, then runs that
 // copy's install.mjs. npx's own copy is a cache entry npm replaces at will, so ~/.claude
 // must never link into it. The clone URL comes from package.json's `repository`, so a
 // fork that edits that one field bootstraps itself.
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -12,7 +11,7 @@ import { stdin, stdout } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { cloneTargetFromPackage, parseBootstrapArgs, sameRepo } from "../scripts/install/bootstrap.mjs";
-import { gitOriginUrl, gitPull, runNode } from "../scripts/install/env.mjs";
+import { gitOriginUrl, gitPull, run, runNode } from "../scripts/install/env.mjs";
 import { readJson } from "../scripts/install/json.mjs";
 import { expandHome } from "../scripts/install/paths.mjs";
 
@@ -42,12 +41,12 @@ function update(dir, url) {
   gitPull(dir);
 }
 
+// A `#ref` in package.json is a branch or tag, honoured on this first clone.
 function clone(dir, { url, ref }) {
   if (existsSync(dir)) fail(`${dir} exists and is not a git clone. Pass --dir <path> to use another location.`);
   console.log(`Cloning ${url}${ref ? ` (${ref})` : ""} into ${dir}`);
-  const result = spawnSync("git", ["clone", ...(ref ? ["--branch", ref] : []), url, dir], { stdio: "inherit" });
-  if (result.error) fail(`git could not be started: ${result.error.message}`);
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  const status = run("git", ["clone", ...(ref ? ["--branch", ref] : []), url, dir]);
+  if (status !== 0) process.exit(status);
 }
 
 async function chooseDir() {

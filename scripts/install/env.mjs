@@ -8,14 +8,19 @@ export function hasCommand(name) {
   return probe.status === 0;
 }
 
-// Runs a script with this Node, sharing the terminal; the exit code comes back.
-export function runNode(script, args) {
-  const result = spawnSync(process.execPath, [script, ...args], { stdio: "inherit" });
+// Runs a command sharing the terminal; the exit code comes back, 1 with a message when
+// the command could not be started at all.
+export function run(command, args) {
+  const result = spawnSync(command, args, { stdio: "inherit" });
   if (result.error) {
-    console.error(`${script} could not be started: ${result.error.message}`);
+    console.error(`${command} could not be started: ${result.error.message}`);
     return 1;
   }
   return result.status ?? 1;
+}
+
+export function runNode(script, args) {
+  return run(process.execPath, [script, ...args]);
 }
 
 // Fast-forwards the clone. Untracked files are fine; a modified tracked file is not,
@@ -25,8 +30,7 @@ export function gitPull(repoDir) {
   if (status.error) throw new Error(`git could not be started: ${status.error.message}`);
   if (status.status !== 0) throw new Error(`${repoDir} is not a git clone, so there is nothing to pull.`);
   if (status.stdout.trim()) throw new Error(`${repoDir} has uncommitted changes. Commit or stash them before updating.`);
-  const pull = spawnSync("git", ["-C", repoDir, "pull", "--ff-only"], { stdio: "inherit" });
-  if (pull.status !== 0) throw new Error("git pull --ff-only failed.");
+  if (run("git", ["-C", repoDir, "pull", "--ff-only"]) !== 0) throw new Error("git pull --ff-only failed.");
 }
 
 export function gitOriginUrl(repoDir) {

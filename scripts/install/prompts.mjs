@@ -14,9 +14,10 @@ export function createPrompter({ file, yes, noOptional, ask }) {
   // An essential piece (the git-guard hook) is still added under --no-optional,
   // unless an earlier run said no to it.
   async function confirm(key, question, fallback = false, { essential = false } = {}) {
+    const earlier = typeof saved[key] === "boolean" ? saved[key] : null;
     if (yes) return true;
-    if (noOptional) return essential ? (saved[key] ?? fallback) : false;
-    if (!ask && typeof saved[key] === "boolean") return saved[key];
+    if (noOptional) return essential ? (earlier ?? fallback) : false;
+    if (!ask && earlier !== null) return earlier;
     if (!interactive) return fallback;
     const rl = createInterface({ input: stdin, output: stdout });
     const answer = (await rl.question(`${question} ${fallback ? "[Y/n]" : "[y/N]"} `)).trim().toLowerCase();

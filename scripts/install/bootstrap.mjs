@@ -4,7 +4,7 @@ import { requireValue } from "./args.mjs";
 // `--dir` and `--repo` are the bootstrapper's own; everything else goes to install.mjs.
 export function parseBootstrapArgs(argv, env = {}) {
   const args = argv.filter((arg) => arg !== "--");
-  const parsed = { dir: env.CLAUDE_CODE_CONFIG_DIR ?? null, repo: null, passthrough: [] };
+  const parsed = { dir: env.CLAUDE_CODE_CONFIG_DIR || null, repo: null, passthrough: [] };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--dir") parsed.dir = requireValue(args, i++);
     else if (args[i] === "--repo") parsed.repo = requireValue(args, i++);
@@ -26,14 +26,17 @@ export function cloneTargetFromPackage(pkg) {
   return { url: base.replace(/^git\+/, ""), ref };
 }
 
+// `user@host:path`, `ssh://user@host/path` and `https://user@host/path` all name the
+// same repository as `https://host/path`, on any host.
 export function sameRepo(a, b) {
   const normalise = (url) =>
     url
       .trim()
       .toLowerCase()
       .replace(/^git\+/, "")
-      .replace(/^git@github\.com:/, "https://github.com/")
-      .replace(/^ssh:\/\/git@github\.com\//, "https://github.com/")
+      .replace(/^[\w.-]+@([^:/]+):/, "https://$1/")
+      .replace(/^ssh:\/\/[\w.-]+@([^/]+)\//, "https://$1/")
+      .replace(/^(https?:\/\/)[^@/]+@/, "$1")
       .replace(/\.git$/, "")
       .replace(/\/+$/, "");
   return normalise(a) === normalise(b);

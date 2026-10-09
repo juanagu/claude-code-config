@@ -3,7 +3,7 @@
 // the skills written here, writes the CLAUDE.md import, creates settings.json from the
 // template when missing, asks about the optional pieces, installs the third-party
 // skills. Re-running is safe; `node install.mjs --help` lists the options.
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,7 +44,7 @@ async function main() {
   if (swept.length) console.log(`Removed broken skill links: ${swept.join(", ")}`);
 
   await configureSettings(claudeDir, current, prompter, flags);
-  const failed = flags.skipSkills ? [] : await installSkills(prompter);
+  const failed = flags.skipSkills ? [] : await installSkills(prompter, skillsDir);
   prompter.save();
 
   const backup = linker.backupDir();
@@ -104,14 +104,17 @@ async function offerCodegraph(current, prompter, flags) {
   return true;
 }
 
-async function installSkills(prompter) {
+// An optional skill already in place is reinstalled without asking, like the ones in
+// skills.txt, so a run after --yes does not ask about what it installed.
+async function installSkills(prompter, skillsDir) {
   if (!hasCommand("npx")) {
     console.log("npx not found: skipped the skills in skills.txt. Install npm and re-run.");
     return [];
   }
   const wanted = readSkillList(join(repoDir, "skills.txt"));
   for (const skill of readSkillList(join(repoDir, "skills.optional.txt"))) {
-    if (await prompter.confirm(`skill:${skill.name}`, `Install the ${skill.name} skill (${skill.description})?`, false)) wanted.push(skill);
+    const present = existsSync(join(skillsDir, skill.name));
+    if (present || (await prompter.confirm(`skill:${skill.name}`, `Install the ${skill.name} skill (${skill.description})?`, false))) wanted.push(skill);
   }
   return wanted.filter((skill) => !installSkill(skill)).map((skill) => skill.name);
 }

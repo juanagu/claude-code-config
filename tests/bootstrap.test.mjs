@@ -16,8 +16,9 @@ test("--dir and --repo are the bootstrapper's, the rest passes through, every --
   assert.deepEqual(parsed, { dir: "~/cfg", repo: "https://x/y.git", passthrough: ["--yes", "--claude-dir", "/c"] });
 });
 
-test("the directory can come from the environment, and --dir without a value is an error", () => {
+test("the directory can come from the environment, an empty value counts as unset, and --dir without a value is an error", () => {
   assert.equal(parseBootstrapArgs([], { CLAUDE_CODE_CONFIG_DIR: "/opt/cfg" }).dir, "/opt/cfg");
+  assert.equal(parseBootstrapArgs([], { CLAUDE_CODE_CONFIG_DIR: "" }).dir, null);
   assert.throws(() => parseBootstrapArgs(["--dir", "--yes"]), /--dir needs a value/);
 });
 
@@ -42,6 +43,9 @@ test("every repository spec npm accepts becomes a URL git can clone, with its re
 test("the same repository is recognised across URL spellings", () => {
   assert.ok(sameRepo("https://github.com/me/fork.git", "https://github.com/Me/Fork"));
   assert.ok(sameRepo("git@github.com:me/fork.git", "https://github.com/me/fork.git"));
+  assert.ok(sameRepo("git@gitlab.com:me/cfg.git", "https://gitlab.com/me/cfg.git"));
+  assert.ok(sameRepo("ssh://git@gitlab.com/me/cfg.git", "https://gitlab.com/me/cfg"));
+  assert.ok(sameRepo("https://me@gitlab.com/me/cfg.git", "https://gitlab.com/me/cfg"));
   assert.ok(!sameRepo("https://github.com/me/fork.git", "https://github.com/me/other.git"));
 });
 
