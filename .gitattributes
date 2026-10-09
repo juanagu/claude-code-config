@@ -1,2 +1,2 @@
-*.sh text eol=lf
 skills.txt text eol=lf
+skills.optional.txt text eol=lf
