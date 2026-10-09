@@ -143,7 +143,7 @@ Two skills that used to be vendored here are gone on purpose: `pdf`, because its
 
 ### `settings.template.json`
 
-The settings the install script writes when `~/.claude/settings.json` doesn't exist: `ENABLE_TOOL_SEARCH`, the CodeGraph MCP allow rule, the `git-guard` hook, the update channel. It's copied rather than linked because Claude Code rewrites the file itself (`/config`, "always allow" prompts), which would break a link, and a file symlink needs admin rights on Windows anyway. An existing `settings.json` is left alone; the script only tells you if the hook is missing from it.
+The settings the install script writes when `~/.claude/settings.json` doesn't exist: `ENABLE_TOOL_SEARCH`, the CodeGraph MCP allow rule, the `git-guard` hook, the update channel, and `attribution` emptied so commits and PR descriptions carry no Claude trailer or signature (the commit history and the PR say what was done; who typed it is not a fact the repo needs). It's copied rather than linked because Claude Code rewrites the file itself (`/config`, "always allow" prompts), which would break a link, and a file symlink needs admin rights on Windows anyway. An existing `settings.json` is left alone; the script only tells you if the hook is missing from it.
 
 Not in the template, add them yourself if you want them: `"model"`, `"tui": "fullscreen"`, and the [`rtk`](https://github.com/rtk-ai/rtk) hook (`rtk hook claude` under the same `Bash` matcher) that compresses shell output.
 
