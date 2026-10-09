@@ -22,7 +22,7 @@ Create a pull request that fits this user's trunk-based development model (see `
 
 ### 2. Run local checks before pushing
 - Run this project's lint/type-check/test commands if they exist (check `package.json` scripts, or the project's README/CLAUDE.md for the actual commands).
-- Run the e2e specs the change touches, where the project has a Playwright suite: the PR's CI runs only the smoke set, so this is the only time the rest runs before release.
+- Where the project has a Playwright suite, run `test:e2e:smoke` plus the specs that cover the changed code: every spec file under the same feature folder as a changed file, and every spec whose name shares a changed file's route or feature (`tests/e2e/<feature>*.spec.ts`). The PR's CI runs only the smoke set, so this is the only time the rest runs before release.
 - If checks fail, fix them or stop and tell the user — don't open a PR on a known-broken branch.
 - For non-trivial changes, run the `clean-code` skill or invoke `qa-engineer`/relevant subagent per this repo's pipeline before considering the branch ready, if that hasn't already happened earlier in the task.
 

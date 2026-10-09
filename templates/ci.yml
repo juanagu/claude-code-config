@@ -1,23 +1,17 @@
 name: CI
 
-# Two tiers, because GitHub Actions minutes are budgeted (~/.claude/CLAUDE.md,
-# Workflow): a fast tier on every PR push and every push to main, and the full
-# browser suite only where it pays. Copy this file into a new repo's
+# The two CI tiers the Workflow section of ~/.claude/CLAUDE.md defines: `checks`
+# is the fast tier, `e2e-full` the full one. Copy this file into a new repo's
 # .github/workflows/. A service repo has no browser suite: delete, together,
 # the `schedule` trigger, the RUN_SMOKE env with the smoke steps in `checks`,
-# and the `e2e-full` and `report-full-tier` jobs, so `checks` runs alone.
+# and the `e2e-full` and `report-full-tier` jobs, so `checks` runs alone and
+# whoever pushes a tag watches its run.
 #
-#   - pull_request and push to main: lint, typecheck, unit and fast integration
-#     tests, build, and a Playwright smoke set if the repo is a web app (the
-#     describes tagged @smoke). A newer push cancels the older run on a PR,
-#     never on main or a tag.
-#   - tag v* (a release), the weekly schedule and a manual run: the full
-#     Playwright suite too. A red scheduled or release-tag run reports to one
-#     issue, since no PR is there to turn red.
-#   - a change to docs or feature readmes alone runs nothing, so such a PR has
-#     no run at all: never make `checks` a required status check, and the
-#     merge gate counts "no run" as green. A doc a test reads must be
-#     re-included (`- 'docs/the-file.md'` after the negation).
+# Two things GitHub does that this file cannot change: a push the `paths`
+# filter excludes creates no run at all, so never make `checks` a required
+# status check (a doc a test reads must be re-included, `- 'docs/the-file.md'`
+# after the negation); and a schedule is disabled after 60 days without a
+# commit on main, so after a quiet spell run `gh workflow enable ci.yml`.
 on:
   push:
     branches: [main]
@@ -116,10 +110,11 @@ jobs:
           retention-days: 7
 
   # A red weekly or release-tag run has no PR to turn red, so it reports to an
-  # issue: one per regression (a comment on the open one, a new one otherwise).
-  # The workflow token has no project scope, so the issue goes on the board by
-  # hand. A `cancelled` job result is one killed by its timeout-minutes; a run
-  # someone cancels from the Actions tab skips this job (`!cancelled()`).
+  # issue: one per regression, whichever trigger hit it (a comment on the open
+  # one, a new one otherwise). The workflow token has no project scope, so the
+  # issue goes on the board by hand. A `cancelled` job result is one killed by
+  # its timeout-minutes; a run someone cancels from the Actions tab skips this
+  # job (`!cancelled()`).
   report-full-tier:
     needs: [checks, e2e-full]
     if: ${{ !cancelled() && (github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
@@ -131,17 +126,19 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      TITLE: "Full CI tier failed on ${{ github.event_name == 'schedule' && 'main (weekly run)' || github.ref_name }}"
+      PREFIX: "Full CI tier failed on"
+      WHERE: ${{ github.event_name == 'schedule' && 'main (weekly run)' || github.ref_name }}
     steps:
       - name: Open the issue, or comment on the open one
         run: |
-          # Match the exact title in jq, from the environment: a phrase search also finds a
-          # longer title (v1.2.0 finds v1.2.0-rc1), and a tag name is not safe to splice into a jq program.
+          # Any open issue with the prefix is the same regression, whether the weekly run or
+          # a tag found it first. The match runs in jq from the environment: a tag name is not
+          # safe to splice into a jq program, and a phrase search also matches longer titles.
           existing=$(gh issue list --state open --limit 200 --json number,title \
-            --jq '[.[] | select(.title | startswith($ENV.TITLE + " ("))][0].number // empty')
+            --jq '[.[] | select(.title | startswith($ENV.PREFIX + " "))][0].number // empty')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Still red on $(date -u +%Y-%m-%d): $RUN_URL"
+            gh issue comment "$existing" --body "Still red on $(date -u +%Y-%m-%d), $WHERE: $RUN_URL"
           else
-            gh issue create --title "$TITLE ($(date -u +%Y-%m-%d))" \
+            gh issue create --title "$PREFIX $WHERE ($(date -u +%Y-%m-%d))" \
               --body "The full tier failed: $RUN_URL. Add this issue to the project board."
           fi
