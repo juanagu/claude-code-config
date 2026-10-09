@@ -139,7 +139,7 @@ Two skills that used to be vendored here are gone on purpose: `pdf`, because its
 
 ### `templates/`: starting points for a new repo
 
-`ci.yml` is the two-tier GitHub Actions workflow the Workflow section of `CLAUDE.md` describes: lint, typecheck, tests, build and a Playwright smoke set on every PR push and push to `main`; the full suite on a `v*` tag, weekly and on a manual run, opening an issue when a weekly or release-tag run fails. Copy it into `.github/workflows/`; its header says what a service repo deletes. Nothing links it into `~/.claude`.
+`ci.yml` is the two-tier GitHub Actions workflow the Workflow section of `CLAUDE.md` describes. Copy it into `.github/workflows/`; its header says what a service repo deletes. Nothing links it into `~/.claude`.
 
 ### `settings.template.json`
 
