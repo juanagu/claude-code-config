@@ -1,7 +1,7 @@
 // The pure parts of bin/bootstrap.mjs, kept apart so they can be tested without git.
+import { requireValue } from "./args.mjs";
 
 // `--dir` and `--repo` are the bootstrapper's own; everything else goes to install.mjs.
-// npx may or may not swallow the `--` separator, so it is dropped wherever it appears.
 export function parseBootstrapArgs(argv, env = {}) {
   const args = argv.filter((arg) => arg !== "--");
   const parsed = { dir: env.CLAUDE_CODE_CONFIG_DIR ?? null, repo: null, passthrough: [] };
@@ -13,17 +13,28 @@ export function parseBootstrapArgs(argv, env = {}) {
   return parsed;
 }
 
-function requireValue(args, i) {
-  const value = args[i + 1];
-  if (!value || value.startsWith("--")) throw new Error(`${args[i]} needs a value.`);
-  return value;
-}
-
-// npm accepts `github:owner/name`, a plain URL, `git+https://…` and the object form.
-export function cloneUrlFromPackage(pkg) {
+// The forms npm accepts for `repository`: `owner/name`, `github:owner/name`, either
+// with `#ref`, a clone URL, `git+https://…`, and the object form. Other hosts' shorthands
+// are refused rather than handed to git as a path.
+export function cloneTargetFromPackage(pkg) {
   const spec = typeof pkg.repository === "string" ? pkg.repository : pkg.repository?.url;
   if (!spec) throw new Error("package.json has no `repository` field, so there is nothing to clone.");
-  const github = spec.match(/^github:([^/]+\/[^/]+?)(?:\.git)?$/);
-  if (github) return `https://github.com/${github[1]}.git`;
-  return spec.replace(/^git\+/, "");
+  const [base, ref = null] = spec.split("#");
+  const github = base.match(/^(?:github:)?([\w.-]+\/[\w.-]+?)(?:\.git)?$/);
+  if (github) return { url: `https://github.com/${github[1]}.git`, ref };
+  if (/^[a-z]+:[^/]/i.test(base)) throw new Error(`repository "${spec}" is not supported: use github:owner/name or a clone URL.`);
+  return { url: base.replace(/^git\+/, ""), ref };
+}
+
+export function sameRepo(a, b) {
+  const normalise = (url) =>
+    url
+      .trim()
+      .toLowerCase()
+      .replace(/^git\+/, "")
+      .replace(/^git@github\.com:/, "https://github.com/")
+      .replace(/^ssh:\/\/git@github\.com\//, "https://github.com/")
+      .replace(/\.git$/, "")
+      .replace(/\/+$/, "");
+  return normalise(a) === normalise(b);
 }

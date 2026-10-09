@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { readJson, writeJson } from "./json.mjs";
+import { readJson } from "./json.mjs";
 import { toPosix } from "./paths.mjs";
 
 export const GIT_GUARD_NEEDLE = "hooks/git-guard.mjs";
@@ -43,5 +43,3 @@ export function addAllowRule(settings, rule) {
   settings.permissions.allow ??= [];
   settings.permissions.allow.push(rule);
 }
-
-export const writeSettings = writeJson;

@@ -7,7 +7,7 @@ missing, offers the optional pieces, and installs the third-party skills.
 
   --update              git pull --ff-only in this clone, then run the pulled installer
   --claude-dir <dir>    the Claude config directory (default: ~/.claude)
-  --yes                 accept every optional piece, this run only
+  --yes                 accept every optional piece that can work, this run only
   --no-optional         the core setup only, this run only, no questions
   --ask                 ask again about pieces answered on an earlier run
   --skip-skills         do not run npx for the third-party skills
@@ -29,15 +29,21 @@ const BOOLEAN_FLAGS = {
   "-h": "help",
 };
 
+// The value after an option, which must exist and not be another option.
+export function requireValue(args, i) {
+  const value = args[i + 1];
+  if (!value || value.startsWith("--")) throw new Error(`${args[i]} needs a value.`);
+  return value;
+}
+
+// npx may or may not swallow the `--` separator, so it is dropped wherever it appears.
 export function parseArgs(argv) {
   const flags = { claudeDir: null, update: false, yes: false, noOptional: false, ask: false, skipSkills: false, rtk: null, codegraph: null, help: false };
   const args = argv.filter((arg) => arg !== "--");
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--claude-dir") {
-      const value = args[++i];
-      if (!value || value.startsWith("--")) throw new Error("--claude-dir needs a path.");
-      flags.claudeDir = expandHome(value);
+      flags.claudeDir = expandHome(requireValue(args, i++));
       continue;
     }
     if (arg === "--rtk" || arg === "--no-rtk") {

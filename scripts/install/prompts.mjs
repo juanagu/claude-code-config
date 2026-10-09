@@ -33,5 +33,5 @@ export function createPrompter({ file, yes, noOptional, ask }) {
     writeJson(file, saved);
   }
 
-  return { confirm, decide, save, interactive };
+  return { confirm, decide, save };
 }

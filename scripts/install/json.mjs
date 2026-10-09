@@ -1,8 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
-// A BOM (some editors add one) is dropped; anything else wrong names the file.
+const BYTE_ORDER_MARK = 0xfeff;
+
+// A leading byte-order mark (some editors add one) is dropped; anything else wrong
+// names the file.
 export function readJson(path) {
-  const text = readFileSync(path, "utf8").replace(/^﻿/, "");
+  const raw = readFileSync(path, "utf8");
+  const text = raw.charCodeAt(0) === BYTE_ORDER_MARK ? raw.slice(1) : raw;
   try {
     return JSON.parse(text);
   } catch (error) {

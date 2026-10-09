@@ -155,6 +155,39 @@ test("an unknown option fails with a message and touches nothing", (t) => {
   assert.deepEqual(readdirSync(dir), []);
 });
 
+test("a settings.json that is not JSON stops the run before anything is moved or linked", (t) => {
+  const dir = freshDir(t);
+  mkdirSync(join(dir, "agents"));
+  writeFileSync(join(dir, "agents", "mine.md"), "mine");
+  writeFileSync(join(dir, "settings.json"), "{ oops");
+  const result = run(dir, "--no-optional");
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /settings\.json is not valid JSON/);
+  assert.ok(!lstatSync(join(dir, "agents")).isSymbolicLink());
+  assert.ok(!existsSync(join(dir, "CLAUDE.md")));
+  assert.deepEqual(backupsIn(dir), []);
+});
+
+test("--yes adds no rtk hook when rtk is not on PATH, since the hook would fail every shell call", (t) => {
+  const dir = freshDir(t);
+  writeJson(join(dir, "settings.json"), {});
+  const noPath = { ...process.env, PATH: "", Path: "" };
+  const result = spawnSync(process.execPath, [installer, "--claude-dir", dir, "--skip-skills", "--yes"], { encoding: "utf8", env: noPath });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(!hookCommands(settingsOf(dir)).includes("rtk hook claude"));
+  assert.ok(hookCommands(settingsOf(dir)).some((command) => command.includes("git-guard")));
+});
+
+test("an explicit --rtk without rtk on PATH adds the hook and says so", (t) => {
+  const dir = freshDir(t);
+  writeJson(join(dir, "settings.json"), {});
+  const noPath = { ...process.env, PATH: "", Path: "" };
+  const result = spawnSync(process.execPath, [installer, "--claude-dir", dir, "--skip-skills", "--rtk", "--no-codegraph"], { encoding: "utf8", env: noPath });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(hookCommands(settingsOf(dir)).includes("rtk hook claude"));
+  assert.match(result.stdout, /rtk is not on PATH/);
+});
+
 test("--help prints the options", () => {
   const result = spawnSync(process.execPath, [installer, "--help"], { encoding: "utf8" });
   assert.equal(result.status, 0);
