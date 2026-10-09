@@ -54,8 +54,7 @@ Pull the actual summary/changes from `git log main..HEAD` and `git diff main...H
 
 ### 5. Create the PR
 - `gh pr create --title "<type(scope): summary>" --body "<description from step 4>"`.
-- Open it ready for review, not as a draft: CI's fast tier is meant to run on every push, and it costs minutes only where the full suite would not.
-- Default to a regular (non-draft) PR unless the user says the work is still in progress, in which case use `--draft`.
+- Open it ready for review, never with `--draft` unless the user asks for a draft by name (`~/.claude/CLAUDE.md`, Workflow): a draft runs the same fast tier and spends the same minutes, it only hides the PR from review.
 - If the user mentioned specific reviewers or the repo has an obvious CODEOWNERS pattern, add `--reviewer`; otherwise skip it rather than guessing.
 - Report the PR URL back to the user.
 
