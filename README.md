@@ -96,7 +96,7 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `technical-writer` | sonnet | READMEs, API docs, ADRs, changelogs. |
 | `devops-engineer` | sonnet | Docker/Compose, CI/CD, Cloudflare configuration. |
 
-Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`. The model column is a family alias, so it follows that family's latest release; `node --test tests/` checks that every agent names one. The Subagents section of `CLAUDE.md` says what each tier is for and how to move a single dispatch up or down.
+Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`. The model column is a family alias, so it follows that family's latest release; `node --test tests/agents.test.mjs` checks that every agent names one. The Subagents section of `CLAUDE.md` says what each tier is for and how to move a single dispatch up or down.
 
 ### `hooks/`: things Claude cannot forget
 
@@ -183,7 +183,7 @@ Check it worked: `/agents` should list the nine agents, `/memory` should show th
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
 - **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. **Third-party skill:** add it to `skills.txt` instead.
-- **New agent:** add `agents/<name>.md` with a `model` alias (`node --test tests/` refuses `inherit`), then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
+- **New agent:** add `agents/<name>.md` with a `model` alias (`node --test tests/agents.test.mjs` refuses `inherit`), then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
 - **New hook:** add it to `hooks/` with a test, add its entry to `settings.template.json`, and add the same entry to your own `settings.json` (the template isn't re-applied). Before adding a rule to `CLAUDE.md`, ask whether it belongs here instead.
 - Open a new session to pick up the change (hooks are read at session start), then ship it through a PR (`open-pr`).
 
