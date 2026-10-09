@@ -1,7 +1,7 @@
 ---
 name: architect-engineer
 description: Use for system/module design decisions, defining boundaries between layers, evaluating architectural tradeoffs, and writing short ADRs before implementation starts. Invoke when a change spans 2+ layers/features, introduces a new pattern, or touches shared/core code — not for a straightforward feature that already fits the repo's existing shape.
-model: inherit
+model: opus
 effort: high
 color: purple
 tools: Read, Glob, Grep, Bash, Write, Skill

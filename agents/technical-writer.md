@@ -1,7 +1,7 @@
 ---
 name: technical-writer
 description: Use for README files, API documentation, architecture docs, ADRs, changelogs, migration guides, and other developer-facing documentation. Invoke when a change needs documenting or existing docs need to be brought back in line with the code.
-model: inherit
+model: sonnet
 effort: low
 color: cyan
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill

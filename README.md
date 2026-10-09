@@ -84,19 +84,19 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 
 ### `agents/`: subagents
 
-| Agent | Use it for |
-| --- | --- |
-| `product-strategist` | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
-| `architect-engineer` | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
-| `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
-| `frontend-engineer` | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
-| `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
-| `qa-engineer` | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
-| `security-engineer` | Security review and threat modelling across the stack. |
-| `technical-writer` | READMEs, API docs, ADRs, changelogs. |
-| `devops-engineer` | Docker/Compose, CI/CD, Cloudflare configuration. |
+| Agent | Model | Use it for |
+| --- | --- | --- |
+| `product-strategist` | opus | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
+| `architect-engineer` | opus | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
+| `designer` | opus | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
+| `frontend-engineer` | sonnet | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
+| `backend-engineer` | sonnet | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
+| `qa-engineer` | sonnet | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
+| `security-engineer` | opus | Security review and threat modelling across the stack. |
+| `technical-writer` | sonnet | READMEs, API docs, ADRs, changelogs. |
+| `devops-engineer` | sonnet | Docker/Compose, CI/CD, Cloudflare configuration. |
 
-Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`.
+Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`. The model column is a family alias, so it follows that family's latest release; `node --test tests/agents.test.mjs` checks that every agent names one. The Subagents section of `CLAUDE.md` says what each tier is for and how to move a single dispatch up or down.
 
 ### `hooks/`: things Claude cannot forget
 
@@ -183,7 +183,7 @@ Check it worked: `/agents` should list the nine agents, `/memory` should show th
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
 - **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run the install script so it gets linked. **Third-party skill:** add it to `skills.txt` instead.
-- **New agent:** add `agents/<name>.md`, then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
+- **New agent:** add `agents/<name>.md` with a `model` alias (`node --test tests/agents.test.mjs` refuses `inherit`), then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
 - **New hook:** add it to `hooks/` with a test, add its entry to `settings.template.json`, and add the same entry to your own `settings.json` (the template isn't re-applied). Before adding a rule to `CLAUDE.md`, ask whether it belongs here instead.
 - Open a new session to pick up the change (hooks are read at session start), then ship it through a PR (`open-pr`).
 

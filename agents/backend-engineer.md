@@ -1,7 +1,7 @@
 ---
 name: backend-engineer
 description: Use for Node.js/Fastify implementation across BFFs, APIs/microservices, MongoDB repositories, schema validation, auth, and BullMQ/Redis background jobs. Proactively invoke for any backend implementation task.
-model: inherit
+model: sonnet
 effort: medium
 color: green
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill

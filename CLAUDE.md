@@ -93,6 +93,8 @@ Skills to reach for directly: `flutter-architecture`, `nextjs-architecture`, `fa
 
 **Shell access.** Subagent Bash has worked in some sessions and not others. Don't assume either way; whatever they report, re-run the checks yourself.
 
+**Models follow the cost of being wrong.** Each agent file names its model as a family alias, so it follows that family's latest release (`tests/agents.test.mjs` in the config repo checks it). Opus where the call is hard to reverse and only a person checks it: scope, boundaries, placement, a threat model. Sonnet where the output is cheap to redo and is checked before it lands, by lint and tests, by you re-running every check, or by the PR diff being read: implementation, tests, config, docs. The session keeps the strongest model: orchestration and the `/code-review` passes are where whole-conversation judgment pays, and a subagent sees only its brief. Haiku is for `Explore` fan-out searches, passed as `model` on dispatch; a cold-start `Plan` check is Sonnet at least, because a model that finds little is the failure that check exists to catch. Move one dispatch up a tier for a stated reason (a change that alters a contract across a service boundary) or down (a one-line config fix) with the Agent tool's `model` override, never by editing the file for one task.
+
 ### New product idea
 
 1. **product-strategist** scopes it. 2. **architect-engineer** makes the first phase's technical calls. 3. **designer** designs the key flows. 4. Then the feature pipeline below.
