@@ -1,7 +1,7 @@
 ---
 name: security-engineer
 description: Use for security review of code changes, threat modeling, and secure-coding guidance across the stack (Next.js, Astro, Fastify BFFs/microservices, BullMQ/Redis, MongoDB, Flutter, Cloudflare edge/WAF). Invoke before shipping auth, payments, data handling, or anything exposed to external input, and periodically as a general review pass. Defensive use only.
-model: inherit
+model: opus
 effort: high
 color: red
 tools: Read, Glob, Grep, Bash, Edit, Skill

@@ -1,7 +1,7 @@
 ---
 name: product-strategist
 description: Use to turn a rough new-platform/product idea into a scoped plan — problem framing, target users, prioritized feature set, business model/positioning, and a phased roadmap. Invoke at the very start of a greenfield idea, before any architecture or implementation planning. Does not decide tech stack, architecture, or detailed UI — hands off to architect-engineer and designer once scope is set.
-model: inherit
+model: opus
 effort: high
 color: teal
 tools: Read, Glob, Grep, Write, Edit, Skill

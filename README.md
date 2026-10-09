@@ -84,19 +84,19 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 
 ### `agents/`: subagents
 
-| Agent | Use it for |
-| --- | --- |
-| `product-strategist` | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
-| `architect-engineer` | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
-| `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
-| `frontend-engineer` | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
-| `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
-| `qa-engineer` | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
-| `security-engineer` | Security review and threat modelling across the stack. |
-| `technical-writer` | READMEs, API docs, ADRs, changelogs. |
-| `devops-engineer` | Docker/Compose, CI/CD, Cloudflare configuration. |
+| Agent | Model | Use it for |
+| --- | --- | --- |
+| `product-strategist` | opus | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
+| `architect-engineer` | opus | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
+| `designer` | opus | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
+| `frontend-engineer` | sonnet | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
+| `backend-engineer` | sonnet | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
+| `qa-engineer` | sonnet | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
+| `security-engineer` | opus | Security review and threat modelling across the stack. |
+| `technical-writer` | sonnet | READMEs, API docs, ADRs, changelogs. |
+| `devops-engineer` | sonnet | Docker/Compose, CI/CD, Cloudflare configuration. |
 
-Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`.
+Each one ends with the same report shape (changed, verified, deviations, needs the user). The order they run in is the feature pipeline in `CLAUDE.md`. The model column is a family alias, so it follows each family's latest release: Opus where nothing downstream checks the agent's call, Sonnet where lint, tests and the review gate do. The session itself stays on the strongest model you have, for orchestration and the review passes; the Subagents section of `CLAUDE.md` has the reasoning and the per-dispatch override.
 
 ### `hooks/`: things Claude cannot forget
 

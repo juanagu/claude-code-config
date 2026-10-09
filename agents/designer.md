@@ -1,7 +1,7 @@
 ---
 name: designer
 description: Use for real UI/UX design decisions — information architecture (which screen a feature belongs on), new components, layout/UX patterns not already established, design systems, design tokens, and accessibility reviews — for web (Next.js apps or Astro static/marketing sites) and Flutter mobile UI. frontend-engineer handles minor visual tweaks itself; invoke this agent for decisions, not execution of an already-established pattern.
-model: inherit
+model: opus
 effort: high
 color: pink
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill

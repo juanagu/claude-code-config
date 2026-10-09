@@ -93,6 +93,8 @@ Skills to reach for directly: `flutter-architecture`, `nextjs-architecture`, `fa
 
 **Shell access.** Subagent Bash has worked in some sessions and not others. Don't assume either way; whatever they report, re-run the checks yourself.
 
+**Models follow the cost of being wrong.** Each agent file names its model as a family alias (`opus`, `sonnet`), never `inherit`, so a session run on a smaller model cannot downgrade the architect by accident, and each resolves to the family's latest. The four whose calls nothing downstream checks run on Opus: product-strategist, architect-engineer, designer, security-engineer. The five that work inside a decided spec, behind lint, tests and the review gate, run on Sonnet: frontend-engineer, backend-engineer, devops-engineer, qa-engineer, technical-writer. The session itself keeps the strongest model: orchestration and the `/code-review` passes are where whole-conversation judgment pays, and a subagent sees only its brief, so that edge is wasted on it. Haiku is for `Explore` fan-out searches, passed as `model` on dispatch. Move one dispatch up a tier for a stated reason (a backend change that alters a contract across a service boundary goes to Opus) or down (a one-line config fix to Haiku) with the Agent tool's `model` override, never by editing the file for one task.
+
 ### New product idea
 
 1. **product-strategist** scopes it. 2. **architect-engineer** makes the first phase's technical calls. 3. **designer** designs the key flows. 4. Then the feature pipeline below.

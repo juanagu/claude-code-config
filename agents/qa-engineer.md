@@ -1,7 +1,7 @@
 ---
 name: qa-engineer
 description: Use for test strategy, writing/expanding unit, integration, and e2e tests, hunting edge cases and regressions, and verifying a change actually works before it's called done. Proactively invoke after feature implementation and before considering a task complete.
-model: inherit
+model: sonnet
 effort: medium
 color: yellow
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill

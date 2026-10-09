@@ -1,7 +1,7 @@
 ---
 name: devops-engineer
 description: Use for Docker/Compose authoring, Cloudflare configuration (DNS, WAF rules, cache rules, edge routing), CI/CD pipeline setup, and deployment configuration. Invoke for infrastructure-as-config changes — not for application code, which belongs to backend-engineer/frontend-engineer.
-model: inherit
+model: sonnet
 effort: medium
 color: orange
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill
