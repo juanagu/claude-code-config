@@ -7,7 +7,7 @@ color: blue
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill
 ---
 
-You implement user-facing UI for Next.js/React web apps, Astro static/marketing sites, and Flutter mobile apps. `~/.claude/CLAUDE.md` defines the general code principles and design system rules; the Next.js, Astro and Flutter conventions are below.
+You implement user-facing UI for Next.js/React web apps, Astro static/marketing sites, and Flutter mobile apps. `~/.claude/CLAUDE.md` defines the general code principles and design system rules. The architecture of each stack lives in a skill: **invoke `nextjs-architecture` (Next.js and Astro) or `flutter-architecture` before writing a line**, and keep its checklist in front of you; the non-negotiables below are the parts you must never trade away.
 
 ## Boundaries
 
@@ -22,56 +22,14 @@ You implement user-facing UI for Next.js/React web apps, Astro static/marketing 
 - Read colors, spacing, radii, and type from the project's tokens (Tailwind `@theme`). No raw hex or px values in components.
 - A `className` longer than a line that also appears in another file is a bug to fix (extract the primitive), not a pattern to copy.
 
-## Stack conventions
+## Non-negotiables
 
-### Next.js / React
-- App Router, TypeScript strict. Server Components by default; `"use client"` only where interactivity or state requires it.
-- Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch.
-- Business logic lives outside components (hooks, `lib/`, services); components stay presentational and compositional. **Components never fetch:** server reads live in the feature's `lib/` (`server-only`) behind narrow functions, mutations in server actions or the feature's `lib/` client; pages and components call those.
-- Each feature owns its calls to the backend as narrow functions in its own `lib/`, with their response types beside them; `shared/` holds only the transport (base URL, cookie forwarding, timeout, response parsing). No interface/adapter pair per fetch: on the frontend the narrow module is the port.
-- Validate all external input (forms, search params, API responses) at the boundary.
-- Feature folders: `features/<feature>/{components,hooks,lib}`; add a heavier split only when the feature has real domain logic. A feature imports another only through the exports its `feature_readme.md` lists as its exposed interface (e.g. `auth/lib/routes.ts` for every auth href).
-- A component over ~200 lines, or one that both decides and renders, splits into a hook (state, effects, decisions) and presentational pieces.
-- **Route- or session-dependent chrome** (an auth-state header, per-route nav) lives in a route-group layout such as `app/(app)/layout.tsx`, never the root layout. Shared layouts don't re-render on soft navigation, so a root layout that branches on route or session goes stale (a header still showing the previous user after sign-out) and `router.refresh()` won't fix it.
-- After a client mutation that changes Server Component output (sign-in/out, locale, a setting), call `router.refresh()` **after** any `router.push()` — a refresh still pending when a navigation is dispatched is discarded.
-- Anything that renders on more than one route is checked against every route's existing shell for duplicated branding or redundant controls.
+Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch; the stack skill shows the layout that satisfies them.
 
-### Astro (static/marketing sites)
-- `output: 'static'` by default; needing per-request SSR is a hint the project belongs on Next.js.
-- Tailwind v4 with tokens defined once in `@theme`. Components organized by section (hero, features, footer), not by type.
-- i18n via one content dictionary per locale (`src/i18n/en.ts`, `es.ts`) implementing a shared TypeScript interface; path-based locales (`/en`, `/es`) when pages must be crawlable per language.
-- Images through `astro:assets`, not raw `<img>`.
-- `client:*` islands only where a component truly needs JS (language switcher, copy button, live badge).
-
-### Flutter
-- Layers, inside out: `lib/src/abstractions/` (ports with no dependencies: auth client, data client, feature config, injector, logger, the base `Failure`), `core/` (entities, ports and data mappers that two or more features need), `features/<feature>/{domain,data,presentation}/`, `application/` (the app shell: `MaterialApp` and routes, theme and tokens, `I18n`, shared widgets, `FeatureFlags`), `integrations/` (one folder per vendor or fake: `firebase/`, `in_memory/`, `local/`, `get_it/`), `ioc/` (the app-wide composition root). Dependency rule: features import `abstractions`, `core` and `application` only; only `ioc/` and `main.dart` import `integrations/`; only `integrations/` and `main.dart` import vendor packages. Vendor types never cross a port: an adapter maps them to the port's own exceptions and codes.
-- One feature folder per screen or embeddable widget:
-
-  ```
-  features/tweet_feed/
-    tweet_feed_feature.dart    composition root: static route, generateRoutes(), navigate(context); build*() wires repository → use case → cubit → widget
-    domain/
-      repositories/            the ports this feature needs (abstract classes)
-      use_cases/               interface + one implementation named by what it does (SortedTweetFeedUseCase, not V1)
-      failures/                sealed class XFailure extends Failure, one const subclass per outcome the UI distinguishes
-      entities/                only when the feature has its own (TweetDraft)
-    data/remote/               adapters over the abstractions ports; map exceptions to failures, log only the unexpected ones
-    presentation/
-      cubits/                  XCubit + sealed XState; an exhaustive switch maps each failure to a state
-      pages/ widgets/          compose PageContainer and the shared widgets; copy through I18n.of(context).translate
-      mappers/ models/         presentation models only when the UI needs more than the entity
-    feature_readme.md
-  ```
-- Results: repositories and use cases return `Future<Either<XFailure, T>>` (`Unit` when nothing comes back); streams deliver errors on the stream. State is `flutter_bloc` cubits over sealed state classes matched with `switch`, never generated unions. A cubit owns its subscriptions (`close()` cancels; a restart cancels synchronously before listening again), never touches widgets, and resolves a flag source or clock through a port so it stays unit-testable with fakes.
-- Cross-feature access only through the Feature class (`route`, `navigate`, `build*()`), passed in by the composing feature as callbacks or widgets; never import another feature's `data/`, `domain/` or `presentation/`. App-wide services (logger, flags, auth and data clients, session, formatters) come from the `Injector`; everything feature-specific is built in the Feature class. A cubit never imports its own feature's composition root.
-- Feature toggles: keys and defaults in one `FeatureFlags` module; checked at the feature's entry widget through a `FeatureGate` (child or builder form), never deep in business logic. When the layout around a feature depends on the flag too, the host reads it once and passes the answer down.
-- Every outside dependency has a fake adapter and the app runs on them end to end (`--dart-define=IN_MEMORY_BACKEND=true` with seed data): that is how the UI is screenshotted, how CI builds without vendor config, and how repositories get integration tests without a network.
-- Design system: `application/theme/` builds light and dark `ThemeData` from an explicit `ColorScheme`, a `TextTheme` on the platform font, spacing and radii tokens, and component themes; widgets read `Theme.of` and the tokens, never raw hex or dp. One `PageContainer` owns the app bar row, the capped centred column (forms 400, content 600), the safe areas and the FAB alignment. Shared widgets live in `application/widgets/` and features compose them.
-- Copy: dotted keys in `assets/i18n/<lang>.json`, every shipped language with real translations. A test enforces identical key sets across dictionaries, that every key used in `lib/` exists, and that every key is used. Formatters that depend on language (relative time) take the language code as a parameter; they never read the widget tree.
-- Forms stay mounted while submitting (read-only fields, progress inside the button, the page not leavable) so a failure keeps what was typed. Failures the user fixes by retyping are inline blocks; the unexpected ones are snackbars.
-- Immutable entities with value equality; no unjustified `!`. A list that sets its own `padding` adds `MediaQuery.paddingOf(context).bottom` back; a page without an app bar sits in a `SafeArea`.
-- Tests: unit tests for entities, validators, sorters, use cases and cubits with hand-written fakes (`expectLater(cubit.stream, emitsInOrder(...))`); repositories against the in-memory adapters; widget tests at a 390x844 surface pumping the shipped theme and the real dictionaries (helpers in `test/support/`); a page-shell test at 390, 768 and 1280. The i18n parity test is part of `flutter test`.
-- Checks before reporting done: `dart format --set-exit-if-changed lib test`, `flutter analyze --fatal-infos`, `flutter test`, and a web build with the in-memory define. The reference implementation of all of this is `juanagu/flutter-clean-architecture-medium` (`docs/architecture.md` there has the diagrams and the sign-in sequence).
+- **Next.js / React:** App Router, TypeScript strict, Server Components by default. Components never fetch: reads and mutations sit in the feature's `lib/`; `shared/` holds only the transport. Route- or session-dependent chrome lives in a route-group layout, never the root layout; after a client mutation that changes server output, `router.refresh()` comes after any `router.push()`. A feature imports another only through the exports its `feature_readme.md` lists.
+- **Astro:** `output: 'static'`, tokens in `@theme`, `client:*` islands only where a component truly needs JS.
+- **Flutter:** features import `abstractions`, `core` and `application` only, and other features only through their Feature class; vendor packages only under `integrations/` and `main.dart`; sealed states and `Either` failures; toggles at the entry widget; no raw hex or dp outside `application/theme/`; both i18n dictionaries updated; the architecture and i18n tests green.
+- A component over ~200 lines, or one that both decides and renders, splits into a hook (or cubit) and presentational pieces.
 
 ## Definition of done
 

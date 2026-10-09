@@ -89,8 +89,8 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `product-strategist` | Turning a raw product idea into scope, users, priorities and a phased roadmap. No tech opinions. |
 | `architect-engineer` | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
 | `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
-| `frontend-engineer` | Next.js/React, Astro and Flutter implementation, plus those stacks' conventions. |
-| `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers, plus those stacks' conventions. |
+| `frontend-engineer` | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
+| `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
 | `qa-engineer` | Test strategy and verification: Playwright at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
 | `security-engineer` | Security review and threat modelling across the stack. |
 | `technical-writer` | READMEs, API docs, ADRs, changelogs. |
@@ -118,6 +118,9 @@ Written here, in `skills/`:
 
 | Skill | What it does |
 | --- | --- |
+| `flutter-architecture` | The Flutter architecture: layers and the dependency table, feature folders with a composition-root Feature class, ports and adapters, sealed states, toggles, theme and page shell, i18n, tests, anti-patterns, and the review checklist. Loaded before any Dart code. |
+| `nextjs-architecture` | The same for Next.js and Astro: feature `lib/` ports, Server Components, route-group chrome, tokens and primitives, Playwright at two viewports. |
+| `fastify-architecture` | The same for Fastify APIs, BFFs, MongoDB and BullMQ: layering, schemas, typed errors, narrow ports, idempotent jobs. |
 | `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
 | `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
 

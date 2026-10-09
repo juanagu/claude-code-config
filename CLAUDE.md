@@ -18,7 +18,7 @@ Match what an existing project already uses instead of forcing this stack on it.
 - **Next.js or Astro?** Real client state, auth, a data-heavy UI, or a product that will keep growing → Next.js. Fundamentally static or content-driven → Astro.
 - **BFF or direct calls?** Add a BFF when a client needs shaping/aggregation across more than one service, or a different auth/session model. A single client talking to a single service doesn't need one yet.
 
-**Stack conventions live with the agent that implements them:** Next.js, Astro and Flutter in `~/.claude/agents/frontend-engineer.md`; Fastify, BFF, MongoDB and BullMQ in `backend-engineer.md`; Docker, Compose, CI and Cloudflare in `devops-engineer.md`. When you write code in one of those stacks yourself, read that file's conventions section first.
+**Stack architecture lives in a skill per stack**, loaded on demand and shared by whoever writes, plans or reviews code in it: `flutter-architecture`, `nextjs-architecture` (Next.js and Astro), `fastify-architecture` (APIs, BFFs, BullMQ, MongoDB). Each holds the layout, the dependency rule as a table, a "where does X go" guide, the anti-patterns seen in reviews with the correct form, and the checklist a review brief copies. **Invoke the skill before writing or reviewing a line in that stack**, in the main session as much as in a subagent. Agent files hold only the role, its boundaries, a few non-negotiables and the done criteria. Docker, Compose, CI and Cloudflare conventions stay in `devops-engineer.md`. Why: an architecture stated as principles in one agent's file is seen by one agent and followed loosely; a concrete layout and checklist loaded by everyone, backed by a test that fails on a forbidden import, is followed.
 
 ## Design
 
@@ -50,7 +50,7 @@ Principles drift; these are concrete enough to fail a review or a lint run. Each
 - **Size, for new and rewritten code.** About 300 lines per file and 40 per function, counting no blanks or comments. Exempt: tests, pure data/type/schema files (i18n dictionaries, generated types), a framework's plugin wrapper (a Fastify plugin function whose body only registers routes), and components, which get ~200 lines in the frontend agent's rules.
 - **Don't extend a violation.** Match the surrounding code's style, not its structural mistakes; "the file already did it this way" is never the reason. When the code you touch already breaks a rule, this takes precedence over Size: fix it in the same PR only if the fix is small (under ~50 changed lines, no behaviour or contract change, covered by existing tests). Otherwise build your change the right way beside it, link the existing refactor issue or open one, and list it under Deviations. Never start an unasked refactor of a file you only needed to add to.
 - **Contracts aren't refactors.** Response and error-envelope shapes a client depends on are contracts: changing one is a tracked change with its own issue and the client updated together, never a side effect of tidying.
-- **Enforced by lint once a repo opts in.** A repo adopts boundary and size rules (`eslint-plugin-boundaries` or `dependency-cruiser`, `max-lines`, `max-lines-per-function`) through its own ticket, with a baseline: today's offenders listed as per-file overrides that may only shrink. Where a repo has them, run lint before reporting work done. Never add a disable comment to get past them.
+- **Enforced by lint or a test once a repo opts in.** A repo adopts boundary and size rules (`eslint-plugin-boundaries` or `dependency-cruiser`, `max-lines`, `max-lines-per-function`; in Flutter an architecture test that scans `lib/` imports against the dependency table) through its own ticket, with a baseline: today's offenders listed as per-file overrides that may only shrink. Where a repo has them, run them before reporting work done. Never add a disable comment to get past them.
 
 ## Feature folders
 
@@ -83,7 +83,7 @@ Specialists live in `~/.claude/agents/`. This file authorizes dispatching them p
 - **technical-writer** — READMEs, API docs, ADRs, changelogs.
 - **devops-engineer** — Docker/Compose, CI/CD, Cloudflare; implements topology, doesn't decide it.
 
-Skills to reach for directly: `clean-code`, `security-threat-model`, `frontend-design`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`, `conventional-commit`, `archify`.
+Skills to reach for directly: `flutter-architecture`, `nextjs-architecture`, `fastify-architecture` (before any code in that stack), `clean-code`, `security-threat-model`, `frontend-design`, `web-design-guidelines`, `open-pr`, `resolve-pr-comments`, `conventional-commit`, `archify`.
 
 **Briefing a subagent.** Subagents see only your prompt and their own file. Carry the context explicitly: links to the issue and docs, the literal API contract when work crosses a boundary, what's in and out of scope, and what to report. Describe the problem, not your preferred answer — for `designer` especially, a suggested solution is labelled as one hypothesis to test against alternatives, since a designer handed a placement tends to confirm it. Every agent ends with the same report shape (changed, verified, deviations, needs the user), so you don't need to restate it.
 
@@ -108,7 +108,7 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 5. **security-engineer** — auth, payments, external input, data exposure.
 6. **technical-writer** — when user- or developer-facing docs change.
 7. **devops-engineer** — when Docker, CI/CD or Cloudflare config changes.
-8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics). **Every review brief includes architecture** alongside correctness and security: layering, `shared/` vs feature placement, interface width, file and function size, comment history (the structure rules above). A new violation is a request for changes, not a nit.
+8. `/code-review` before calling it finished; for UI, also the `web-design-guidelines` skill (contrast, target size, semantics). **Every review brief includes architecture** alongside correctness and security: paste the stack skill's "Checklist for a review brief" into it, plus layering, `shared/` vs feature placement, interface width, file and function size, comment history (the structure rules above). A new violation is a request for changes, not a nit.
 
 ## Workflow
 
