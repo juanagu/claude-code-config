@@ -116,9 +116,30 @@ test/
   core/                 entities
   features/<f>/         cubits with expectLater(cubit.stream, emitsInOrder(...)), use cases, repositories against the in-memory adapters, widget tests of each state
   integrations/         the in-memory adapters
+integration_test/
+  smoke_test.dart       the fast tier: entry → sign-in → home at a phone window, in the default locale
+  <flow>_test.dart      one file per critical flow (sign-in and sign-up, feed and like, compose, toggles off), each at both windows and every locale
+  support/              pumpUntil(tester, finder), signInAsDemo(tester), setLocale(tester, 'es'), takeScreenshot(binding, name)
+test_driver/
+  integration_test.dart integrationDriver(onScreenshot: writes screenshots/<name>.png)
 ```
 
-Before reporting work done: `dart format --set-exit-if-changed lib test`, `flutter analyze --fatal-infos`, `flutter test`, `flutter build web --release --dart-define=IN_MEMORY_BACKEND=true`, and screenshots at 390 and desktop for every state the change touches (the repo's `docs/development.md` has the recipe).
+### End-to-end with `integration_test`
+
+The SDK's `integration_test` package runs real widget tests inside the running app, on a device, an emulator or a browser. It is the Flutter equivalent of the Playwright tier and follows the same rules: critical flows only, at least a phone window and a desktop one, every shipped locale, a smoke set on every PR and the full set on release.
+
+- **Backend:** always the in-memory one (`--dart-define=IN_MEMORY_BACKEND=true`), seeded with the demo account and tweets, so the flows are deterministic and CI needs no vendor config. A flow that must prove the real boundary is a manual signed-in pass on a device with the Firebase files, reported with what was seen.
+- **Web, which is what CI runs:** `chromedriver --port=4444` in the background, then
+  `flutter drive -d web-server --browser-name=chrome --browser-dimension=390,844 --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart --dart-define=IN_MEMORY_BACKEND=true`.
+  `--browser-dimension` is how the phone window is set; run the same target again with `1280,800` for desktop. Headless is the default on `web-server`.
+- **Device or emulator:** `flutter test integration_test --dart-define=IN_MEMORY_BACKEND=true -d <device id>`; the window is the device, so run it on one phone profile and, for tablet layouts, one tablet.
+- **Locale:** `tester.platformDispatcher.localeTestValue = const Locale('es')` before pumping, then assert on the Spanish dictionary's strings (load it from `assets/i18n/es.json`, never hard-code). Every shipped locale gets the same flow.
+- **Waiting:** spinners never settle, so `pumpAndSettle` is not the tool; a `pumpUntil(tester, finder)` helper pumps in short steps until the finder matches or a timeout fails the test with the screen's current text.
+- **Screenshots:** `await binding.takeScreenshot('home-390-es')` in the test, saved by `integrationDriver(onScreenshot:)` in `test_driver/`; name them `<screen>-<width>-<locale>` and link them in the PR. These are the screenshots the UI rule asks for; the manual browser recipe in the repo's `docs/development.md` is the fallback when drive cannot run.
+- **CI tiers:** the fast job adds chromedriver (`nanasess/setup-chromedriver`) and runs `smoke_test.dart` at 390 once; the full job runs every file at both dimensions and every locale, on a `v*` tag, the weekly schedule and manual runs, and opens an issue when red. Emulator runs stay out of CI unless a change is Android-specific; they cost minutes an app this size does not need.
+- **What stays a widget test:** anything that does not need the real app wired through `IocManager`: a cubit, a page's states with fakes, the i18n parity scan. An integration test that only pumps one widget with fakes belongs in `test/`.
+
+Before reporting work done: `dart format --set-exit-if-changed lib test integration_test`, `flutter analyze --fatal-infos`, `flutter test`, the integration flows the change touches (on a PR, CI runs only the smoke set), `flutter build web --release --dart-define=IN_MEMORY_BACKEND=true`, and screenshots at 390 and desktop for every state the change touches.
 
 ## 10. Adding a feature
 
@@ -161,5 +182,5 @@ Copy into every `/code-review` brief for Flutter work:
 6. No raw hex or dp outside `application/theme/`; new UI composes `application/widgets/`.
 7. Both dictionaries updated; i18n test green.
 8. Forms keep input across a failed submit; back is blocked while submitting.
-9. Tests follow §9; widget tests pump the shipped theme at 390x844.
+9. Tests follow §9; widget tests pump the shipped theme at 390x844; a changed flow has its `integration_test/` file run at both windows and every locale, with screenshots linked.
 10. Files ~300 lines, functions ~40, components ~200, counting no blanks or comments.
