@@ -1,9 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { basename, join, resolve, sep } from "node:path";
-
-export function toPosix(path) {
-  return path.split(sep).join("/");
-}
+import { basename, join, resolve } from "node:path";
+import { toPosix } from "./paths.mjs";
 
 export function samePath(a, b) {
   const normalise = (path) => resolve(path.replace(/^\\\\\?\\/, "")).replace(/[\\/]+$/, "");

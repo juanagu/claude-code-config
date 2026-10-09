@@ -3,6 +3,7 @@
 // the skills written here, writes the CLAUDE.md import, creates settings.json from the
 // template when missing, asks about the optional pieces, installs the third-party
 // skills. Re-running is safe; `node install.mjs --help` lists the options.
+import { spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -14,7 +15,8 @@ import { createPrompter } from "./scripts/install/prompts.mjs";
 import * as settings from "./scripts/install/settings.mjs";
 import { installSkill, linkRepoSkills, readSkillList } from "./scripts/install/skills.mjs";
 
-const repoDir = dirname(fileURLToPath(import.meta.url));
+const self = fileURLToPath(import.meta.url);
+const repoDir = dirname(self);
 
 async function main() {
   const flags = parseArgs(process.argv.slice(2));
@@ -22,7 +24,7 @@ async function main() {
     console.log(HELP);
     return 0;
   }
-  if (flags.update) gitPull(repoDir);
+  if (flags.update) return updateThenRerun();
 
   const claudeDir = flags.claudeDir ? resolve(flags.claudeDir) : join(homedir(), ".claude");
   const skillsDir = join(claudeDir, "skills");
@@ -52,6 +54,14 @@ async function main() {
   return 0;
 }
 
+// The pull may change this very code, so the pulled installer runs in a fresh process.
+function updateThenRerun() {
+  gitPull(repoDir);
+  const args = process.argv.slice(2).filter((arg) => arg !== "--update" && arg !== "--");
+  const result = spawnSync(process.execPath, [self, ...args], { stdio: "inherit" });
+  return result.status ?? 1;
+}
+
 // The template is written whole when settings.json is missing. An existing file is the
 // user's: each addition is offered, and only the ones accepted are merged in.
 async function configureSettings(claudeDir, prompter, flags) {
@@ -59,8 +69,7 @@ async function configureSettings(claudeDir, prompter, flags) {
   let changed = created;
 
   if (!settings.hasHook(current, settings.GIT_GUARD_NEEDLE)) {
-    const add = flags.noOptional || (await prompter.confirm("gitGuard", "settings.json has no git-guard hook. Add it?", true));
-    if (add) {
+    if (await prompter.confirm("gitGuard", "settings.json has no git-guard hook. Add it?", true, { essential: true })) {
       settings.addHook(current, settings.GIT_GUARD_MATCHER, settings.gitGuardCommand(claudeDir));
       changed = true;
     }
@@ -69,7 +78,7 @@ async function configureSettings(claudeDir, prompter, flags) {
   if (!settings.hasHook(current, settings.RTK_NEEDLE)) {
     const installed = hasCommand("rtk");
     const note = installed ? "rtk is on PATH" : "rtk is not on PATH, see https://github.com/rtk-ai/rtk";
-    const add = flags.rtk ?? (await prompter.confirm("rtk", `Add the rtk hook, which compresses shell output (${note})?`, installed));
+    const add = flags.rtk === null ? await prompter.confirm("rtk", `Add the rtk hook, which compresses shell output (${note})?`, installed) : prompter.decide("rtk", flags.rtk);
     if (add) {
       settings.addHook(current, settings.RTK_MATCHER, settings.RTK_COMMAND);
       changed = true;
@@ -79,7 +88,7 @@ async function configureSettings(claudeDir, prompter, flags) {
   if (!settings.hasAllowRule(current, settings.CODEGRAPH_RULE)) {
     const installed = hasCommand("codegraph");
     const note = installed ? "codegraph is on PATH" : "codegraph is not on PATH; the rule is harmless until it is";
-    const add = flags.codegraph ?? (await prompter.confirm("codegraph", `Allow the CodeGraph MCP tools without a prompt (${note})?`, installed));
+    const add = flags.codegraph === null ? await prompter.confirm("codegraph", `Allow the CodeGraph MCP tools without a prompt (${note})?`, installed) : prompter.decide("codegraph", flags.codegraph);
     if (add) {
       settings.addAllowRule(current, settings.CODEGRAPH_RULE);
       changed = true;
