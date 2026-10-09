@@ -91,7 +91,7 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `designer` | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
 | `frontend-engineer` | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
 | `backend-engineer` | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
-| `qa-engineer` | Test strategy and verification: Playwright at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
+| `qa-engineer` | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
 | `security-engineer` | Security review and threat modelling across the stack. |
 | `technical-writer` | READMEs, API docs, ADRs, changelogs. |
 | `devops-engineer` | Docker/Compose, CI/CD, Cloudflare configuration. |

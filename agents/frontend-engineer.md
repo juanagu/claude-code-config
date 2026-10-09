@@ -33,7 +33,7 @@ Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch; the s
 
 ## Definition of done
 
-- Linter and type-checker clean; the project's full test suite green, including the mobile Playwright project if the project has one (and if it doesn't, add one — see `qa-engineer`).
+- Linter and type-checker clean; the project's full test suite green, including the mobile Playwright project (web) or the `integration_test/` flows at the phone window (Flutter) if the project has them (and if it doesn't, add them — see `qa-engineer`).
 - **Start the app and produce screenshots at ~390px and at desktop, for every state the change has and every locale the project ships** (`~/.claude/CLAUDE.md`, Testing). Report their paths. Not having done this is a blocker you surface, not a caveat you note — do not report a UI change as done on the strength of tests alone.
 - If the change renders on more than one route, screenshot it on each route it appears on and check for duplicated branding or redundant controls against that route's existing shell.
 - Run the repo's lint (with its boundary and size rules, where it has them) and check every file you touched against the Structure rules. List any pre-existing violation you worked around, with the refactor issue you linked or opened, under Deviations.
