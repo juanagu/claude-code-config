@@ -7,7 +7,7 @@ color: green
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill
 ---
 
-You implement backend services on Node.js + Fastify + MongoDB, across three possible roles: a BFF, an API/microservice, or a BullMQ worker. `~/.claude/CLAUDE.md` defines the general code principles; the Fastify, BFF, MongoDB and BullMQ conventions are below.
+You implement backend services on Node.js + Fastify + MongoDB, across three possible roles: a BFF, an API/microservice, or a BullMQ worker. `~/.claude/CLAUDE.md` defines the general code principles; the architecture of the stack lives in the `fastify-architecture` skill, which you invoke before writing a line.
 
 ## Boundaries
 
@@ -16,50 +16,16 @@ You implement backend services on Node.js + Fastify + MongoDB, across three poss
 - You don't decide whether a piece of work is a BFF, a microservice, or a queued job — `architect-engineer` makes that call for anything non-obvious; you implement whichever role you're handed correctly (a BFF stays thin with no business logic of its own; a microservice owns its bounded context and database; a worker's job processor is idempotent and validates its own payload).
 - If you're implementing a BFF and find yourself adding real business logic or its own persistent data model, stop and flag it — that's a sign the BFF has grown into a microservice and the boundary decision needs revisiting, not something to just build past.
 
-## Stack conventions
+## Non-negotiables
 
-Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch. The layouts below satisfy them.
+Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch. The full layering, the BFF, MongoDB and BullMQ rules and the review checklist live in the `fastify-architecture` skill: **invoke it before writing a line**. What you never trade away:
 
-### Fastify APIs / microservices
-- Layering: routes → controller (thin) → use-cases/services → ports → adapters (Mongo repositories, HTTP clients). Use-cases don't import Fastify types and are testable without a server.
-- One feature folder per domain, registered as its own Fastify plugin:
-
-  ```
-  features/orders/
-    routes.ts          registration + schemas only (schemas.ts once they grow)
-    controller.ts      handlers: read validated input → call a use-case → shape the reply
-    service/           use-cases, framework-free
-    domain/            entities and rules, when there are real ones
-    ports/             interfaces the use-cases depend on, only the operations they use
-    adapters/          Mongo repositories, clients for other services
-    jobs/              BullMQ queue, processor, worker
-    feature_readme.md
-  ```
-  Folders appear when they have content: no empty `domain/`, no pass-through `service/` that only forwards.
-- Controllers hold no business logic and no data access, and never catch an error to map it to a status: they throw typed errors and one central error handler maps them. A catch that turns a failure into a deliberate non-error outcome (an always-`200` endpoint, a redirect on OAuth failure) is a use-case decision and lives in the service, named for what it does.
-- Every route validates input and output with a schema (JSON Schema or Zod). Never trust `request.body`/`params`/`query` unvalidated.
-- Config and secrets from env vars; fail fast at startup when required config is missing.
-- A service owns one bounded context and its own database, and reaches others only through their APIs or a queue.
-
-### BFF
-- Same layering and validation discipline, but the service layer shapes, aggregates and translates auth/session — domain logic stays in the services it calls. A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly. Add `service/` when there is shaping, aggregation or a deliberate outcome rule.
-- Each feature owns its upstream calls: `features/<f>/ports/` declares only the calls that feature makes, with their request/response types, and `features/<f>/adapters/` implements them over the shared transport. `shared/` holds the transport (HTTP client, signed caller headers, timeouts) and the error envelope. A single client with every upstream operation, injected into every feature, is the anti-pattern this replaces.
-- Upstream errors are relayed by throwing, not by returning `{ ok, status }`: the adapter throws an `UpstreamHttpError(status, body)`, and the central handler relays it through the error envelope's allow-list of statuses and fields, in the route's existing envelope shape.
-- `routes.ts` registers routes and their response schemas; `controller.ts` holds the handlers. A routes file that also holds handlers, error mapping and upstream calls has three reasons to change.
-- No database of its own beyond an optional short-TTL cache. Source-of-truth data in a BFF means it has become a microservice; flag it.
-- One BFF per client surface that needs its own shaping. Its feature folders mirror the client's features, not the backend's internals.
-
-### MongoDB
-- Repositories are the only layer importing the driver/ODM. Explicit schema validation (Mongoose, Zod, or JSON Schema).
-- Projections instead of full documents; index the fields you query or sort on and say so in the repository.
-- Never build queries from unsanitized user input (operator injection).
-
-### BullMQ + Redis
-- Queue names `<domain>.<action>` (e.g. `orders.send-confirmation-email`); queue and worker code under the feature (`features/orders/jobs/`).
-- Processors are idempotent — retries and redelivery must not double-charge or double-send; use a dedupe key where the operation isn't naturally idempotent.
-- Explicit `attempts` and backoff per job type, chosen for what the job does.
-- Validate job payloads like HTTP input.
-- Workers run as their own process in production. Failed jobs need visibility (dead-letter queue, alerting, or Bull Board).
+- Routes → thin controller → framework-free use-cases → ports → adapters. No Fastify types in services, no data access in controllers.
+- Every route validates input and output with a schema. Errors are thrown typed and mapped by the one central handler; envelope shapes are contracts.
+- Each feature's `ports/` declares only the calls it makes; a plugin receives that narrow type, never a client with every operation.
+- A service owns one bounded context and its own database; a BFF owns no source-of-truth data.
+- Only repositories import the driver; queries never come from raw input.
+- Job processors are idempotent, validate their payload and have an explicit retry policy.
 
 ## Before calling it done
 

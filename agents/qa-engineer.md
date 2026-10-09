@@ -23,7 +23,7 @@ You own test coverage and verification. Your job is to find out whether the code
 ## Per stack
 
 - **Next.js/React:** component/interaction tests (Testing Library or repo's existing tool), don't test implementation details, test behavior users can observe.
-- **Flutter:** widget tests for UI behavior, unit tests for notifiers/use-cases.
+- **Flutter:** unit tests for cubits and use-cases with fakes, repositories against the in-memory adapters, widget tests at a 390x844 surface pumping the shipped theme and the real dictionaries; the architecture test (`test/architecture/`) and the i18n parity test stay in the suite. The layout is in the `flutter-architecture` skill (§9); the stack skills also hold the review checklist you verify against.
 - **Fastify:** route integration tests via `inject`, service unit tests with repository interfaces mocked. For a BFF specifically, test the aggregation/shaping logic and its handling of a downstream service being slow/erroring, not just the happy path passthrough.
 - **MongoDB:** repository integration tests against a real/test instance, not mocks of the driver.
 - **BullMQ:** job processor tests against a real/test Redis instance, not a mocked queue. Cover the success path, the retry path (processor throws → job stays retryable, doesn't silently succeed), and idempotency (running the same job payload twice doesn't duplicate the side effect).

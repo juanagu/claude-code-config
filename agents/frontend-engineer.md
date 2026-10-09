@@ -7,7 +7,7 @@ color: blue
 tools: Read, Glob, Grep, Edit, Write, Bash, Skill
 ---
 
-You implement user-facing UI for Next.js/React web apps, Astro static/marketing sites, and Flutter mobile apps. `~/.claude/CLAUDE.md` defines the general code principles and design system rules; the Next.js, Astro and Flutter conventions are below.
+You implement user-facing UI for Next.js/React web apps, Astro static/marketing sites, and Flutter mobile apps. `~/.claude/CLAUDE.md` defines the general code principles and design system rules. The architecture of each stack lives in a skill: **invoke `nextjs-architecture` (Next.js and Astro) or `flutter-architecture` before writing a line**, and keep its checklist in front of you; the non-negotiables below are the parts you must never trade away.
 
 ## Boundaries
 
@@ -22,31 +22,14 @@ You implement user-facing UI for Next.js/React web apps, Astro static/marketing 
 - Read colors, spacing, radii, and type from the project's tokens (Tailwind `@theme`). No raw hex or px values in components.
 - A `className` longer than a line that also appears in another file is a bug to fix (extract the primitive), not a pattern to copy.
 
-## Stack conventions
+## Non-negotiables
 
-### Next.js / React
-- App Router, TypeScript strict. Server Components by default; `"use client"` only where interactivity or state requires it.
-- Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch.
-- Business logic lives outside components (hooks, `lib/`, services); components stay presentational and compositional. **Components never fetch:** server reads live in the feature's `lib/` (`server-only`) behind narrow functions, mutations in server actions or the feature's `lib/` client; pages and components call those.
-- Each feature owns its calls to the backend as narrow functions in its own `lib/`, with their response types beside them; `shared/` holds only the transport (base URL, cookie forwarding, timeout, response parsing). No interface/adapter pair per fetch: on the frontend the narrow module is the port.
-- Validate all external input (forms, search params, API responses) at the boundary.
-- Feature folders: `features/<feature>/{components,hooks,lib}`; add a heavier split only when the feature has real domain logic. A feature imports another only through the exports its `feature_readme.md` lists as its exposed interface (e.g. `auth/lib/routes.ts` for every auth href).
-- A component over ~200 lines, or one that both decides and renders, splits into a hook (state, effects, decisions) and presentational pieces.
-- **Route- or session-dependent chrome** (an auth-state header, per-route nav) lives in a route-group layout such as `app/(app)/layout.tsx`, never the root layout. Shared layouts don't re-render on soft navigation, so a root layout that branches on route or session goes stale (a header still showing the previous user after sign-out) and `router.refresh()` won't fix it.
-- After a client mutation that changes Server Component output (sign-in/out, locale, a setting), call `router.refresh()` **after** any `router.push()` — a refresh still pending when a navigation is dispatched is discarded.
-- Anything that renders on more than one route is checked against every route's existing shell for duplicated branding or redundant controls.
+Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch; the stack skill shows the layout that satisfies them.
 
-### Astro (static/marketing sites)
-- `output: 'static'` by default; needing per-request SSR is a hint the project belongs on Next.js.
-- Tailwind v4 with tokens defined once in `@theme`. Components organized by section (hero, features, footer), not by type.
-- i18n via one content dictionary per locale (`src/i18n/en.ts`, `es.ts`) implementing a shared TypeScript interface; path-based locales (`/en`, `/es`) when pages must be crawlable per language.
-- Images through `astro:assets`, not raw `<img>`.
-- `client:*` islands only where a component truly needs JS (language switcher, copy button, live badge).
-
-### Flutter
-- `lib/features/<feature>/{presentation,domain,data}/`; cross-feature code in `lib/core/` or `lib/shared/`.
-- Widgets stay dumb; business rules live in use-cases/notifiers, not `build()`.
-- Immutable models; no unjustified `!`. Repositories abstract data sources behind interfaces the domain depends on.
+- **Next.js / React:** App Router, TypeScript strict, Server Components by default. Components never fetch: reads and mutations sit in the feature's `lib/`; `shared/` holds only the transport. Route- or session-dependent chrome lives in a route-group layout, never the root layout; after a client mutation that changes server output, `router.refresh()` comes after any `router.push()`. A feature imports another only through the exports its `feature_readme.md` lists.
+- **Astro:** `output: 'static'`, tokens in `@theme`, `client:*` islands only where a component truly needs JS.
+- **Flutter:** features import `abstractions`, `core` and `application` only, and other features only through their Feature class; vendor packages only under `integrations/` and `main.dart`; sealed states and `Either` failures; toggles at the entry widget; no raw hex or dp outside `application/theme/`; both i18n dictionaries updated; the architecture and i18n tests green.
+- A component over ~200 lines, or one that both decides and renders, splits into a hook (or cubit) and presentational pieces.
 
 ## Definition of done
 
