@@ -23,7 +23,7 @@ You own test coverage and verification. Your job is to find out whether the code
 ## Per stack
 
 - **Next.js/React:** component/interaction tests (Testing Library or repo's existing tool), don't test implementation details, test behavior users can observe.
-- **Flutter:** unit tests for cubits and use-cases with fakes, repositories against the in-memory adapters, widget tests at a 390x844 surface pumping the shipped theme and the real dictionaries; the architecture test (`test/architecture/`) and the i18n parity test stay in the suite. The layout is in the `flutter-architecture` skill (§9); the stack skills also hold the review checklist you verify against.
+- **Flutter:** unit tests for cubits and use-cases with fakes, repositories against the in-memory adapters, widget tests at a 390x844 surface pumping the shipped theme and the real dictionaries; the architecture test (`test/architecture/`) and the i18n parity test stay in the suite. End-to-end flows are `integration_test/` files run against the in-memory backend (see the section below). The layout and the commands are in the `flutter-architecture` skill (§9); the stack skills also hold the review checklist you verify against.
 - **Fastify:** route integration tests via `inject`, service unit tests with repository interfaces mocked. For a BFF specifically, test the aggregation/shaping logic and its handling of a downstream service being slow/erroring, not just the happy path passthrough.
 - **MongoDB:** repository integration tests against a real/test instance, not mocks of the driver.
 - **BullMQ:** job processor tests against a real/test Redis instance, not a mocked queue. Cover the success path, the retry path (processor throws → job stays retryable, doesn't silently succeed), and idempotency (running the same job payload twice doesn't duplicate the side effect).
@@ -37,6 +37,17 @@ For any frontend project (Next.js or Astro), write real Playwright specs for the
 **Next.js: server-side fetches can't be intercepted with `page.route`.** Server Components and route handlers call the backend from Node, not the browser. Once an app fetches on the server, give Playwright two `webServer` entries: the fake backend first, then the production build pointed at it (the fake must already be up, because `next build` prerenders pages and calls the backend). Extend that fake instead of mocking in the page.
 
 **Screenshots and locales** follow `~/.claude/CLAUDE.md` (Testing): both viewports, every relevant state, every route the change renders on, and every locale the project ships. Produce them via `page.screenshot` in a throwaway script if nothing else, and hand back their paths. Green assertions plus a screenshot that "looks wrong", or a screen in the second locale with the first locale's strings on it, is a failing verification; say so.
+
+## End-to-end testing (Flutter)
+
+For a Flutter app the e2e tier is the SDK's `integration_test` package: real widget tests that drive the running app, wired through its composition root, against the in-memory backend so flows are deterministic and CI needs no vendor config. The same rules as Playwright apply, with Flutter mechanics (the commands, locale override, screenshot driver and CI tier are in the `flutter-architecture` skill, §9):
+
+- **Critical flows only, in `integration_test/`:** `smoke_test.dart` (entry → sign-in → home) for the fast tier, one file per flow for the rest (sign-in and sign-up with their failures, the feed and a like, compose, each toggle off). A test that only pumps one widget with fakes is a widget test in `test/`, not an integration test.
+- **Two windows, always.** Run each flow at a phone window (390x844 via `--browser-dimension` on web, or a phone emulator) and at a desktop one; a suite that has only run at one width has not verified the capped column, the FAB alignment or the wrapping rows. Layout assertions belong in the phone run too.
+- **Every locale.** Set the locale per run through the test binding and assert on strings loaded from that locale's dictionary, never hard-coded; a Spanish run showing English copy is a failing verification.
+- **Screenshots from the test**, named `<screen>-<width>-<locale>`, saved by the driver and linked in the PR; the manual browser recipe in the repo's `docs/development.md` is the fallback when drive cannot run on the machine.
+- **If the project has no `integration_test/` yet,** scaffolding it (the driver file, the helpers, the smoke test, the chromedriver step in the fast CI job) is part of your job before you sign off, the same way adding the mobile Playwright project is for a web app.
+- **The real boundary** (Firebase Auth, Firestore, Remote Config) is not covered by any of this. A change that touches it gets a manual signed-in pass on a device with the Firebase files, reading a record with data in it; report what you saw.
 
 **A fake for a boundary is only as good as its agreement with the real thing.** When a suite runs against a fake server or canned responses, check that the project validates that fake against the real service's schema and headers (the Testing rule). If it doesn't, say so in Deviations and link or open the ticket; a green run against an unverified fake is not evidence about the boundary.
 
