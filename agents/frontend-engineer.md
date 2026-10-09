@@ -44,9 +44,34 @@ You implement user-facing UI for Next.js/React web apps, Astro static/marketing 
 - `client:*` islands only where a component truly needs JS (language switcher, copy button, live badge).
 
 ### Flutter
-- `lib/features/<feature>/{presentation,domain,data}/`; cross-feature code in `lib/core/` or `lib/shared/`.
-- Widgets stay dumb; business rules live in use-cases/notifiers, not `build()`.
-- Immutable models; no unjustified `!`. Repositories abstract data sources behind interfaces the domain depends on.
+- Layers, inside out: `lib/src/abstractions/` (ports with no dependencies: auth client, data client, feature config, injector, logger, the base `Failure`), `core/` (entities, ports and data mappers that two or more features need), `features/<feature>/{domain,data,presentation}/`, `application/` (the app shell: `MaterialApp` and routes, theme and tokens, `I18n`, shared widgets, `FeatureFlags`), `integrations/` (one folder per vendor or fake: `firebase/`, `in_memory/`, `local/`, `get_it/`), `ioc/` (the app-wide composition root). Dependency rule: features import `abstractions`, `core` and `application` only; only `ioc/` and `main.dart` import `integrations/`; only `integrations/` and `main.dart` import vendor packages. Vendor types never cross a port: an adapter maps them to the port's own exceptions and codes.
+- One feature folder per screen or embeddable widget:
+
+  ```
+  features/tweet_feed/
+    tweet_feed_feature.dart    composition root: static route, generateRoutes(), navigate(context); build*() wires repository → use case → cubit → widget
+    domain/
+      repositories/            the ports this feature needs (abstract classes)
+      use_cases/               interface + one implementation named by what it does (SortedTweetFeedUseCase, not V1)
+      failures/                sealed class XFailure extends Failure, one const subclass per outcome the UI distinguishes
+      entities/                only when the feature has its own (TweetDraft)
+    data/remote/               adapters over the abstractions ports; map exceptions to failures, log only the unexpected ones
+    presentation/
+      cubits/                  XCubit + sealed XState; an exhaustive switch maps each failure to a state
+      pages/ widgets/          compose PageContainer and the shared widgets; copy through I18n.of(context).translate
+      mappers/ models/         presentation models only when the UI needs more than the entity
+    feature_readme.md
+  ```
+- Results: repositories and use cases return `Future<Either<XFailure, T>>` (`Unit` when nothing comes back); streams deliver errors on the stream. State is `flutter_bloc` cubits over sealed state classes matched with `switch`, never generated unions. A cubit owns its subscriptions (`close()` cancels; a restart cancels synchronously before listening again), never touches widgets, and resolves a flag source or clock through a port so it stays unit-testable with fakes.
+- Cross-feature access only through the Feature class (`route`, `navigate`, `build*()`), passed in by the composing feature as callbacks or widgets; never import another feature's `data/`, `domain/` or `presentation/`. App-wide services (logger, flags, auth and data clients, session, formatters) come from the `Injector`; everything feature-specific is built in the Feature class. A cubit never imports its own feature's composition root.
+- Feature toggles: keys and defaults in one `FeatureFlags` module; checked at the feature's entry widget through a `FeatureGate` (child or builder form), never deep in business logic. When the layout around a feature depends on the flag too, the host reads it once and passes the answer down.
+- Every outside dependency has a fake adapter and the app runs on them end to end (`--dart-define=IN_MEMORY_BACKEND=true` with seed data): that is how the UI is screenshotted, how CI builds without vendor config, and how repositories get integration tests without a network.
+- Design system: `application/theme/` builds light and dark `ThemeData` from an explicit `ColorScheme`, a `TextTheme` on the platform font, spacing and radii tokens, and component themes; widgets read `Theme.of` and the tokens, never raw hex or dp. One `PageContainer` owns the app bar row, the capped centred column (forms 400, content 600), the safe areas and the FAB alignment. Shared widgets live in `application/widgets/` and features compose them.
+- Copy: dotted keys in `assets/i18n/<lang>.json`, every shipped language with real translations. A test enforces identical key sets across dictionaries, that every key used in `lib/` exists, and that every key is used. Formatters that depend on language (relative time) take the language code as a parameter; they never read the widget tree.
+- Forms stay mounted while submitting (read-only fields, progress inside the button, the page not leavable) so a failure keeps what was typed. Failures the user fixes by retyping are inline blocks; the unexpected ones are snackbars.
+- Immutable entities with value equality; no unjustified `!`. A list that sets its own `padding` adds `MediaQuery.paddingOf(context).bottom` back; a page without an app bar sits in a `SafeArea`.
+- Tests: unit tests for entities, validators, sorters, use cases and cubits with hand-written fakes (`expectLater(cubit.stream, emitsInOrder(...))`); repositories against the in-memory adapters; widget tests at a 390x844 surface pumping the shipped theme and the real dictionaries (helpers in `test/support/`); a page-shell test at 390, 768 and 1280. The i18n parity test is part of `flutter test`.
+- Checks before reporting done: `dart format --set-exit-if-changed lib test`, `flutter analyze --fatal-infos`, `flutter test`, and a web build with the in-memory define. The reference implementation of all of this is `juanagu/flutter-clean-architecture-medium` (`docs/architecture.md` there has the diagrams and the sign-in sequence).
 
 ## Definition of done
 
