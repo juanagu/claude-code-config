@@ -42,7 +42,7 @@ Match what an existing project already uses instead of forcing this stack on it.
 
 ### Structure rules (checkable)
 
-Principles drift; these are concrete enough to fail a review or a lint run. Each stack's agent file shows the layout that satisfies them.
+Principles drift; these are concrete enough to fail a review or a lint run. Each stack's architecture skill shows the layout that satisfies them.
 
 - **Feature code in `shared/` needs two importing features.** Feature logic moves to `shared/` (or `core/`) only when a second feature imports it; until then it lives in the feature that uses it, even if it "looks reusable". Exempt: app infrastructure imported by the app's composition root (config, logger, transport, error envelope, session codec) and the design system (`shared/ui`, tokens), which follow their own rules above.
 - **A feature owns the calls it makes.** Each call to another service, a database or a third-party API goes through a narrow port owned by the feature: an interface plus an adapter on the backend, a module of narrow functions in `lib/` on the frontend. The port declares only the operations that feature uses, and the request/response types for them live beside it. `shared/` holds only the transport (HTTP client, auth headers, timeouts) and the error envelope. A module receives the narrowest interface it uses: a Fastify plugin's options name the feature's port type, never a client with every operation in the system.
@@ -54,7 +54,7 @@ Principles drift; these are concrete enough to fail a review or a lint run. Each
 
 ## Feature folders
 
-Organize by feature, not technical type, in every stack — `features/checkout/` holding its own components/hooks, routes/services/repositories, or presentation/domain/data — with cross-feature code in `shared/` or `core/`. The internal layering is stack-specific (see each agent) and grows with the feature: don't add a `domain/` folder to a feature with no real domain logic yet.
+Organize by feature, not technical type, in every stack — `features/checkout/` holding its own components/hooks, routes/services/repositories, or presentation/domain/data — with cross-feature code in `shared/` or `core/`. The internal layering is stack-specific (see the stack's architecture skill) and grows with the feature: don't add a `domain/` folder to a feature with no real domain logic yet.
 
 **Every feature folder has a `feature_readme.md`**: purpose, exposed interface (routes, use-cases, exported components/hooks), and key data flow. Create it with the feature; update it when it would otherwise mislead, not on every commit.
 
