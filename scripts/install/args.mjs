@@ -1,12 +1,14 @@
+import { expandHome } from "./paths.mjs";
+
 export const HELP = `Usage: node install.mjs [options]
 
 Links ~/.claude to this clone, writes settings.json from the template when it is
 missing, offers the optional pieces, and installs the third-party skills.
 
-  --update              git pull --ff-only in this clone first (refuses a dirty tree)
+  --update              git pull --ff-only in this clone, then run the pulled installer
   --claude-dir <dir>    the Claude config directory (default: ~/.claude)
-  --yes                 accept every optional piece without asking
-  --no-optional         the core setup only, no questions
+  --yes                 accept every optional piece that can work, this run only
+  --no-optional         the core setup only, this run only, no questions
   --ask                 ask again about pieces answered on an earlier run
   --skip-skills         do not run npx for the third-party skills
   --rtk, --no-rtk       decide the rtk hook without asking
@@ -14,8 +16,8 @@ missing, offers the optional pieces, and installs the third-party skills.
                         decide the CodeGraph allow rule without asking
   -h, --help
 
-Answers are kept in <claude-dir>/config-install.json, so a re-run asks only
-about pieces it has not asked about before.`;
+Answers given at a prompt or by --rtk and --codegraph are kept in
+<claude-dir>/config-install.json, so a re-run asks only what it has not asked.`;
 
 const BOOLEAN_FLAGS = {
   "--update": "update",
@@ -27,14 +29,21 @@ const BOOLEAN_FLAGS = {
   "-h": "help",
 };
 
+// The value after an option, which must exist and not be another option.
+export function requireValue(args, i) {
+  const value = args[i + 1];
+  if (!value || value.startsWith("--")) throw new Error(`${args[i]} needs a value.`);
+  return value;
+}
+
+// npx may or may not swallow the `--` separator, so it is dropped wherever it appears.
 export function parseArgs(argv) {
   const flags = { claudeDir: null, update: false, yes: false, noOptional: false, ask: false, skipSkills: false, rtk: null, codegraph: null, help: false };
-  const args = argv[0] === "--" ? argv.slice(1) : argv;
+  const args = argv.filter((arg) => arg !== "--");
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--claude-dir") {
-      flags.claudeDir = args[++i];
-      if (!flags.claudeDir) throw new Error("--claude-dir needs a path.");
+      flags.claudeDir = expandHome(requireValue(args, i++));
       continue;
     }
     if (arg === "--rtk" || arg === "--no-rtk") {

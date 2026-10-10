@@ -101,7 +101,7 @@ test("--no-optional adds only the git-guard hook to an existing settings.json", 
   assert.equal(settings.permissions, undefined);
 });
 
-test("--yes merges the rtk hook and the CodeGraph rule once, and remembers the answers", (t) => {
+test("--yes merges the rtk hook and the CodeGraph rule once, and keeps no answers", (t) => {
   const dir = freshDir(t);
   writeJson(join(dir, "settings.json"), { permissions: { allow: ["Read"] } });
   assert.equal(run(dir, "--yes").status, 0);
@@ -110,19 +110,41 @@ test("--yes merges the rtk hook and the CodeGraph rule once, and remembers the a
   assert.deepEqual(settings.permissions.allow, ["Read", "mcp__codegraph__*"]);
   assert.deepEqual(hookCommands(settings).filter((command) => command.includes("rtk")), ["rtk hook claude"]);
   assert.equal(hookCommands(settings).filter((command) => command.includes("git-guard")).length, 1);
-  const answers = readJson(join(dir, "config-install.json"));
-  assert.equal(answers.rtk, true);
-  assert.equal(answers.codegraph, true);
-  assert.equal(answers.gitGuard, true);
+  assert.deepEqual(readJson(join(dir, "config-install.json")), {});
 });
 
-test("explicit --rtk and --no-codegraph beat the defaults", (t) => {
+test("--no-optional keeps no answers, so a later run can still ask", (t) => {
+  const dir = freshDir(t);
+  assert.equal(run(dir, "--no-optional").status, 0);
+  assert.deepEqual(readJson(join(dir, "config-install.json")), {});
+});
+
+test("explicit --rtk and --no-codegraph beat the defaults and are remembered", (t) => {
   const dir = freshDir(t);
   writeJson(join(dir, "settings.json"), {});
   assert.equal(run(dir, "--rtk", "--no-codegraph").status, 0);
   const settings = settingsOf(dir);
   assert.ok(hookCommands(settings).includes("rtk hook claude"));
   assert.equal(settings.permissions, undefined);
+  assert.deepEqual(readJson(join(dir, "config-install.json")), { rtk: true, codegraph: false });
+});
+
+test("an earlier no to the git-guard hook is honoured under --no-optional", (t) => {
+  const dir = freshDir(t);
+  writeJson(join(dir, "settings.json"), {});
+  writeJson(join(dir, "config-install.json"), { gitGuard: false });
+  assert.equal(run(dir, "--no-optional").status, 0);
+  assert.deepEqual(settingsOf(dir), {});
+});
+
+test("a settings.json with a BOM is read; one that is not JSON fails naming the file", (t) => {
+  const dir = freshDir(t);
+  writeFileSync(join(dir, "settings.json"), "\uFEFF{}");
+  assert.equal(run(dir, "--no-optional").status, 0);
+  writeFileSync(join(dir, "settings.json"), "{ oops");
+  const result = run(dir, "--no-optional");
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /settings\.json is not valid JSON/);
 });
 
 test("an unknown option fails with a message and touches nothing", (t) => {
@@ -131,6 +153,39 @@ test("an unknown option fails with a message and touches nothing", (t) => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Unknown option --bogus/);
   assert.deepEqual(readdirSync(dir), []);
+});
+
+test("a settings.json that is not JSON stops the run before anything is moved or linked", (t) => {
+  const dir = freshDir(t);
+  mkdirSync(join(dir, "agents"));
+  writeFileSync(join(dir, "agents", "mine.md"), "mine");
+  writeFileSync(join(dir, "settings.json"), "{ oops");
+  const result = run(dir, "--no-optional");
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /settings\.json is not valid JSON/);
+  assert.ok(!lstatSync(join(dir, "agents")).isSymbolicLink());
+  assert.ok(!existsSync(join(dir, "CLAUDE.md")));
+  assert.deepEqual(backupsIn(dir), []);
+});
+
+test("--yes adds no rtk hook when rtk is not on PATH, since the hook would fail every shell call", (t) => {
+  const dir = freshDir(t);
+  writeJson(join(dir, "settings.json"), {});
+  const noPath = { ...process.env, PATH: "", Path: "" };
+  const result = spawnSync(process.execPath, [installer, "--claude-dir", dir, "--skip-skills", "--yes"], { encoding: "utf8", env: noPath });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(!hookCommands(settingsOf(dir)).includes("rtk hook claude"));
+  assert.ok(hookCommands(settingsOf(dir)).some((command) => command.includes("git-guard")));
+});
+
+test("an explicit --rtk without rtk on PATH adds the hook and says so", (t) => {
+  const dir = freshDir(t);
+  writeJson(join(dir, "settings.json"), {});
+  const noPath = { ...process.env, PATH: "", Path: "" };
+  const result = spawnSync(process.execPath, [installer, "--claude-dir", dir, "--skip-skills", "--rtk", "--no-codegraph"], { encoding: "utf8", env: noPath });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(hookCommands(settingsOf(dir)).includes("rtk hook claude"));
+  assert.match(result.stdout, /rtk is not on PATH/);
 });
 
 test("--help prints the options", () => {
