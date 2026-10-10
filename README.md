@@ -123,6 +123,7 @@ Written here, in `skills/`:
 | `fastify-architecture` | The same for Fastify APIs, BFFs, MongoDB and BullMQ: layering, schemas, typed errors, narrow ports, idempotent jobs. |
 | `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
 | `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
+| `retro` | After something slipped through the pipeline, finds why (no rule, a rule never loaded, a check not run…) and files the strongest fix (a hook or test before a sentence) as an issue for you to approve. Its categories are adapted from [mattpocock/skills](https://github.com/mattpocock/skills). |
 
 Installed from upstream, listed in `skills.txt`:
 
@@ -133,6 +134,7 @@ Installed from upstream, listed in `skills.txt`:
 | `frontend-design` | [anthropics/skills](https://github.com/anthropics/skills) | Distinctive, production-grade UI. |
 | `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Audits UI against web interface guidelines (contrast, target size, semantics). |
 | `security-threat-model` | [openai/skills](https://github.com/openai/skills) | Repo-grounded threat model written as Markdown. |
+| `security-audit` | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) | Whole-repo audit: recon, isolated hunters, an independent verifier per finding, schema-checked results. Multi-agent and heavy, so the main session runs it before a security-relevant release rather than per PR. Writes its runs under `~/security-audit-skill/`. |
 
 Offered one by one, listed in `skills.optional.txt`; nothing in `CLAUDE.md` depends on them:
 
