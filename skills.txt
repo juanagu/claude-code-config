@@ -3,6 +3,7 @@
 # <github repo> <skill name>
 anthropics/skills frontend-design
 openai/skills security-threat-model
+cloudflare/security-audit-skill security-audit
 github/awesome-copilot conventional-commit
 sickn33/antigravity-awesome-skills clean-code
 vercel-labs/agent-skills web-design-guidelines
