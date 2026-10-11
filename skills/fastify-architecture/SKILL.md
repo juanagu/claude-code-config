@@ -27,6 +27,8 @@ src/
     feature_readme.md
 ```
 
+File names are kebab-case: `adapters/http-core-api-auth.ts` exports `HttpCoreApiAuth`, `service/complete-google-sign-in.ts` exports `completeGoogleSignIn`, tests keep the dotted suffix (`bullmq-account-jobs.redis.test.ts`). ESLint enforces it with `unicorn/filename-case` (`kebabCase`).
+
 Folders appear when they have content: no empty `domain/`, no pass-through `service/` that only forwards. A plugin's options name the feature's port type, never a client with every operation in the system.
 
 ## 2. Rules that fail a review
@@ -83,6 +85,7 @@ Before reporting work done: lint, typecheck, unit and fast integration tests, a 
 | `routes.ts` holding handlers, error mapping and upstream calls | `routes.ts` registers; `controller.ts` handles; `adapters/` call |
 | One upstream client with every operation injected into every feature | `ports/` per feature with only its calls |
 | Adapter returning `{ ok, status, body }` | Throw `UpstreamHttpError`; relay through the envelope |
+| `HttpCoreApiAuth.ts`, `sessionGuard.ts`: file named after its symbol | `http-core-api-auth.ts`, `session-guard.ts`; the export keeps its name |
 | A BFF with its own collection of source-of-truth data | It is a microservice now; flag the boundary |
 | `request.body` used without a schema | A schema on the route, input and output |
 | A processor that re-sends on retry | Dedupe key or an idempotent write |
@@ -98,3 +101,4 @@ Before reporting work done: lint, typecheck, unit and fast integration tests, a 
 6. Jobs are idempotent with explicit retry policy and payload validation.
 7. Tests: unit with mocked ports, repositories against a real MongoDB, routes via `inject`, jobs against real Redis.
 8. Files ~300 lines, functions ~40; a routes plugin that only registers is exempt.
+9. File names kebab-case, test suffixes dotted; `unicorn/filename-case` green.

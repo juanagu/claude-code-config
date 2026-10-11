@@ -52,6 +52,8 @@ features/tweet_feed/
   feature_readme.md          purpose, exposed interface, states and failures, data flow, toggle, known gaps
 ```
 
+File and folder names are snake_case (`tweet_feed_cubit.dart` holds `TweetFeedCubit`), as Effective Dart requires; the `file_names` lint in `flutter_lints` enforces it, so never disable it.
+
 Folders appear when they have content. A feature with no rules of its own has no `use_cases/`; a feature that only renders has no `data/`.
 
 ## 3. The Feature class is the composition root
@@ -184,3 +186,4 @@ Copy into every `/code-review` brief for Flutter work:
 8. Forms keep input across a failed submit; back is blocked while submitting.
 9. Tests follow §9; widget tests pump the shipped theme at 390x844; a changed flow has its `integration_test/` file run at both windows and every locale, with screenshots linked.
 10. Files ~300 lines, functions ~40, components ~200, counting no blanks or comments.
+11. File and folder names snake_case; the `file_names` lint is on.

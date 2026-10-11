@@ -25,6 +25,7 @@ src/
   proxy.ts / middleware.ts  locale negotiation and redirect guards; shares one session validator with getSession()
 ```
 
+- File names are kebab-case (`login-form.tsx` exports `LoginForm`, `use-session-refresh.ts` exports `useSessionRefresh`, and Astro components alike: `site-header.astro`); Next's reserved files (`page.tsx`, `layout.tsx`, `route.ts`) and `feature_readme.md` keep their names. ESLint enforces it with `unicorn/filename-case` (`kebabCase`).
 - App Router, TypeScript strict. Server Components by default; `"use client"` only where interactivity or state requires it.
 - **Components never fetch.** Server reads live in the feature's `lib/` behind `server-only` narrow functions; mutations in server actions or the feature's `lib/` client; pages and components call those.
 - A feature owns its calls to the backend as narrow functions in its own `lib/`; `shared/lib` holds only the transport and the error envelope. No interface/adapter pair per fetch: on the frontend the narrow module is the port.
@@ -85,6 +86,7 @@ Before reporting work done: lint, typecheck, unit tests, the e2e specs the chang
 | Auth header or nav in the root layout | `app/(app)/layout.tsx` |
 | `router.refresh()` before `router.push()` | Push first, refresh after |
 | Variant class string copied into a second file | Extract the primitive into `src/shared/ui/` |
+| `LoginForm.tsx`, `authCookies.ts`: file named after its symbol | `login-form.tsx`, `auth-cookies.ts`; the export keeps its name |
 | A Playwright spec asserting on a `lib/` function's return value | A vitest unit test |
 | Desktop-only Playwright project | Add the mobile project before signing off |
 | A fake backend that only agrees with itself | Validate it in CI against the backend's schema |
@@ -98,3 +100,4 @@ Before reporting work done: lint, typecheck, unit tests, the e2e specs the chang
 5. Every string comes from the dictionaries; every shipped locale verified.
 6. Unit tests in vitest, e2e in both Playwright projects, the fake backend validated against the real schema.
 7. Files ~300 lines, functions ~40, components ~200.
+8. File names kebab-case, framework-reserved names excepted; `unicorn/filename-case` green.
