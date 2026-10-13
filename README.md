@@ -198,7 +198,7 @@ Check it worked: `/agents` should list the nine agents, `/memory` should show th
 ## Making changes
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
-- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run `node install.mjs` so it gets linked. **Third-party skill:** add it to `skills.txt`, or to `skills.optional.txt` if nothing in `CLAUDE.md` depends on it.
+- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run `node install.mjs` so it gets linked. A new `*-architecture` skill names every sibling architecture skill in its description's "Not for" clause and is added to each sibling's; `node --test tests/skills.test.mjs` checks that, along with every `§N` pointer and every agent or skill name the prose mentions. **Third-party skill:** add it to `skills.txt`, or to `skills.optional.txt` if nothing in `CLAUDE.md` depends on it.
 - **New agent:** add `agents/<name>.md` with a `model` alias (`node --test tests/agents.test.mjs` refuses `inherit`), then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
 - **New hook:** add it to `hooks/` with a test, add its entry to `settings.template.json`, and add the same entry to your own `settings.json` (the template isn't re-applied; the installer offers only the hooks it knows). `npm test` runs every test here, the installer's included. Before adding a rule to `CLAUDE.md`, ask whether it belongs here instead.
 - Open a new session to pick up the change (hooks are read at session start), then ship it through a PR (`open-pr`).
