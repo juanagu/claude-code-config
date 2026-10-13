@@ -105,7 +105,7 @@ Each one ends with the same report shape (changed, verified, deviations, needs t
 
 | Hook | Event | What it does |
 | --- | --- | --- |
-| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses a commit, merge, rebase, cherry-pick or revert on trunk, a push straight to trunk, a force-push to or deletion of it, `--no-verify` (and config overrides that disable hooks or signing), and a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree). Follows `cd` and `git -C` inside a compound command, including Git Bash paths on Windows. Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
+| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses a commit, merge, rebase, cherry-pick or revert on trunk, a push straight to trunk, a force-push to or deletion of it, `--no-verify` (and config overrides that disable hooks or signing), a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree), `gh pr checkout` and `git stash branch` included, and a bare `git stash`, an untagged `stash push`, a `pop`/`drop`/`branch` without a stash reference, or `stash clear` (the stash stack is shared across worktrees and sessions; `stash push -u -m <tag>` then `stash apply <sha>` is the safe form). Follows `cd`, `pushd`, `Push-Location`, their `-Path` forms and `git -C` inside a compound command, including Git Bash paths on Windows. Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
 
 `npm test` runs its tests with the rest. The hook needs Node and `git` on `PATH`.
 

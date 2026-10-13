@@ -2,7 +2,7 @@
 // Builds two throwaway repos (one listed as protected) and drives the hook the way Claude Code does:
 // JSON on stdin, exit 0 to allow, exit 2 to block.
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -174,6 +174,121 @@ describe("branch switching in a protected checkout", () => {
     blocked("git checkout --orphan fresh", protectedRepo);
   });
   it("allows switching in a repo that is not protected", () => allowed("git switch feat/x", plainRepo));
+  it("blocks gh pr checkout, which switches the branch without saying git", () => {
+    blocked("gh pr checkout 99", protectedRepo);
+    blocked("gh co 99", protectedRepo);
+    blocked("gh pr checkout", protectedRepo);
+    blocked("gh pr checkout 99 --detach", protectedRepo);
+    blocked("gh -R owner/repo pr checkout 99 -b mine", protectedRepo);
+    blocked("gh --repo owner/repo pr checkout 99", protectedRepo);
+    blocked(`cd "${protectedRepo}" && gh pr checkout 99`, home);
+  });
+  it("allows gh pr checkout in a plain repo, and what follows it runs on the PR branch", () => {
+    allowed("gh pr checkout 99", plainRepo);
+    allowed("gh pr checkout 99 && git commit -m x && git push", plainRepo);
+    allowed("gh pr list && gh pr view 99", protectedRepo);
+  });
+  it("follows pushd, Push-Location and the -Path forms into a protected checkout", () => {
+    blocked(`pushd "${protectedRepo}" && git checkout feat/x`, home);
+    blocked(`Push-Location '${protectedRepo}'; git checkout feat/x`, home, "PowerShell");
+    blocked(`Push-Location -Path '${protectedRepo}'; gh pr checkout 99`, home, "PowerShell");
+    blocked(`Set-Location -LiteralPath '${protectedRepo}'; git switch feat/x`, home, "PowerShell");
+  });
+  it("names the trunk it found in the worktree recipe", () => {
+    const repo = makeRepo(home, "served-master", "master");
+    const config = path.join(home, ".claude", "git-guard.json");
+    const before = readFileSync(config, "utf8");
+    writeFileSync(config, JSON.stringify({ protectedCheckouts: [protectedRepo, repo] }));
+    try {
+      const r = run("git switch feat/x", repo);
+      assert.equal(r.code, 2);
+      assert.match(r.stderr, /origin\/master/);
+    } finally {
+      writeFileSync(config, before);
+    }
+  });
+  it("tracks a bare Push-Location, which pushes the current location and stays", () => {
+    blocked(`Push-Location; Push-Location '${home}'; Pop-Location; git checkout feat/x`, protectedRepo, "PowerShell");
+    allowed(`Push-Location '${home}'; Push-Location; git checkout feat/x`, protectedRepo, "PowerShell");
+  });
+  it("blocks git stash branch, which switches too", () => {
+    blocked("git stash branch feat/y stash@{0}", protectedRepo);
+    allowed("git stash branch feat/y stash@{0}", plainRepo);
+  });
+  it("follows popd, Pop-Location and cd - back out of, and into, a protected checkout", () => {
+    allowed(`pushd "${protectedRepo}" && popd && git checkout feat/x`, home);
+    blocked(`pushd "${home}" && popd && git checkout feat/x`, protectedRepo);
+    blocked(`cd "${home}" && cd - && git checkout feat/x`, protectedRepo);
+    allowed(`Push-Location '${protectedRepo}'; Pop-Location; git checkout feat/x`, home, "PowerShell");
+  });
+  it("recognises git.exe and gh.exe", () => {
+    blocked("gh.exe pr checkout 99", protectedRepo, "PowerShell");
+    blocked("git.exe commit -m x", plainRepo, "PowerShell");
+  });
+});
+
+describe("a branch whose upstream is trunk", () => {
+  it("blocks a bare push, and allows one that names the branch", () => {
+    const repo = makeRepo(home, "tracks-trunk");
+    sh(repo, ["switch", "-q", "feat/x"]);
+    sh(repo, ["branch", "--set-upstream-to=main"]);
+    blocked("git push", repo);
+    blocked("git push origin", repo);
+    allowed("git push -u origin feat/x", repo);
+    sh(repo, ["switch", "-q", "main"]);
+    blocked("git switch feat/x && git push", repo);
+    sh(repo, ["switch", "-q", "feat/x"]);
+  });
+  it("tells the safe form", () => {
+    const r = run("git push", path.join(home, "tracks-trunk"));
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /git push -u origin <branch>/);
+  });
+});
+
+describe("stash (any repo)", () => {
+  it("blocks a bare stash, with or without flags", () => {
+    blocked("git stash", plainRepo);
+    blocked("git stash -u", plainRepo);
+    blocked("git stash push", plainRepo);
+    blocked("git stash push -u", plainRepo);
+  });
+  it("blocks pop, apply, drop and branch without a stash reference, and clear", () => {
+    blocked("git stash pop", plainRepo);
+    blocked("git stash apply", plainRepo);
+    blocked("git stash drop", plainRepo);
+    blocked("git stash branch feat/y", plainRepo);
+    blocked("git stash clear", plainRepo);
+  });
+  it("allows the help forms", () => {
+    allowed("git stash --help", plainRepo);
+    allowed("git stash -h", plainRepo);
+  });
+  it("blocks stash save and stash store without a message", () => {
+    blocked("git stash save", plainRepo);
+    blocked("git stash store deadbeef", plainRepo);
+    allowed("git stash store -m wip deadbeef", plainRepo);
+  });
+  it("reads a message that happens to be an action word as the message", () => {
+    allowed("git stash -u -m pop", plainRepo);
+    allowed("git stash push --message clear", plainRepo);
+  });
+  it("allows a tagged push, an attached message, and any action naming its entry", () => {
+    allowed("git stash push -u -m wip-review", plainRepo);
+    allowed("git stash push --message=wip", plainRepo);
+    allowed("git stash -um wip", plainRepo);
+    allowed("git stash -mwip", plainRepo);
+    allowed("git stash save wip", plainRepo);
+    allowed("git stash apply stash@{0}", plainRepo);
+    allowed("git stash pop stash@{2} && git stash drop stash@{1}", plainRepo);
+    allowed("git stash list --format='%H %s' && git stash show -p stash@{1}", plainRepo);
+  });
+  it("names the safe form in the reason, with a command that prints hashes", () => {
+    const r = run("git stash", plainRepo);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /git stash push -u -m <tag>/);
+    assert.match(r.stderr, /--format='%H %s'/);
+  });
 });
 
 describe("fail open", () => {
