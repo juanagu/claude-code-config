@@ -37,7 +37,7 @@ Work through human reviewer feedback on an already-open pull request: fetch it, 
 For each unresolved comment/thread, produce one line: file:line, a one-sentence paraphrase of the ask, and a proposed action — **fix**, **push back / needs discussion** (reviewer's ask is wrong, out of scope, or conflicts with something), or **already addressed elsewhere** (verify against the current diff before claiming this). Present this full list to the user before implementing anything — don't start editing files off your own triage without a chance for the user to redirect, since some comments may be contentious or need their judgment.
 
 ### 3. Implement the agreed fixes
-- Route each fix through the normal pipeline for its layer: `backend-engineer`/`frontend-engineer` for implementation-level feedback, `architect-engineer` if a comment reveals a real design issue spanning layers, `security-engineer` if the feedback is security-relevant.
+- Route each fix through the normal pipeline for its layer: `backend-engineer` or the client's engineer (`frontend-engineer`, `android-engineer`, `ios-engineer`, `react-native-engineer`) for implementation-level feedback, `architect-engineer` if a comment reveals a real design issue spanning layers, `security-engineer` if the feedback is security-relevant.
 - Keep fixes scoped to what the comment actually asked — don't use this pass to also refactor unrelated code (that's a separate PR under the trunk-based small-PR model).
 - For "push back" items, draft the reply explaining the reasoning rather than silently ignoring the comment.
 

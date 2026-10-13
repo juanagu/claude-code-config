@@ -34,7 +34,7 @@ src/
 
 | From | May import |
 | --- | --- |
-| `app/` | `features/*/screens`, `features/*/lib/routes.ts`, `shared/`, `i18n/`, `flags/` |
+| `app/` | `features/*/screens`, `features/*/lib/` (hrefs and param schemas), `features/*/store` (the session store, for the layout guards), `shared/`, `i18n/`, `flags/` |
 | `features/<f>/` | its own folder, `shared/`, `i18n/`, `flags/`, and another feature **only** through the exports its `feature_readme.md` lists |
 | `shared/`, `i18n/`, `flags/` | `shared/`, never a feature |
 
@@ -105,11 +105,11 @@ tests/
 
 - **Component tests** assert what the user sees and does (role, text from the dictionary, disabled state), never internals; `jest.useFakeTimers()` only when a test needs them.
 - **Maestro is the e2e tier**, on both platforms: every flow runs on an iOS simulator and an Android emulator against the development build with the in-memory backend, in every shipped locale (launch with `--env LOCALE=es` read by the app's dev settings, and assert on the dictionary's strings). Spinners never settle on their own: `extendedWaitUntil` on a `testID`, never a fixed `sleep`.
-- **Screenshots come from the flows**: `takeScreenshot: <screen>-<platform>-<locale>` at a phone size on each platform and once at a tablet (iPad or a tablet AVD) for a screen with a wide layout, light and dark. They are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` / `adb exec-out screencap` against the demo variant.
+- **Screenshots come from the flows**: `takeScreenshot: <screen>-<platform>-<locale>` at a phone size on each platform and at a tablet (iPad or a tablet AVD), light and dark. They are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` / `adb exec-out screencap` against the demo variant.
 - **Lint, types and size:** `tsc --noEmit`, ESLint with `eslint-config-expo`, `unicorn/filename-case`, `eslint-plugin-boundaries`, `max-lines` (300) and `max-lines-per-function` (40), with a baseline that may only shrink; never a disable comment to get past them.
 - **CI tiers.** Fast, on every PR, on a Linux runner: lint, typecheck, Jest, `expo-doctor`, the contract check, and `npx expo export` to prove the bundle builds. Full, on a `v*` tag, the weekly run and manual runs: an EAS build per platform (or a local prebuild on the runner) and every Maestro flow, Android on a Linux runner with KVM, iOS on a macOS runner, which bills at ten times the Linux rate and is why iOS flows stay out of the PR tier; it opens an issue when red.
 
-Before reporting work done: lint, typecheck, Jest, the Maestro flows the change touches on both platforms (on a PR, CI runs none), `expo-doctor`, `npx expo export`, and screenshots on iOS and Android, light and dark, for every state and locale the change touches, plus a tablet shot for any screen with a wide layout.
+Before reporting work done: lint, typecheck, Jest, the Maestro flows the change touches on both platforms (on a PR, CI runs none), `expo-doctor`, `npx expo export`, and screenshots on iOS and Android at a phone and a tablet, light and dark, for every state and locale the change touches.
 
 ## 10. Adding a feature
 

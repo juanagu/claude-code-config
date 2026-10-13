@@ -38,7 +38,7 @@ core/
 feature/<name>/           one module per screen or embeddable surface (layout in §2)
 ```
 
-Imports, enforced by the module graph (a module cannot import what its `build.gradle.kts` does not declare) and by a Konsist test for packages inside a module (§9):
+Imports, enforced by the module graph (a module cannot import what its `build.gradle.kts` does not declare) and by a Konsist test for packages inside a module (§10):
 
 | From | May depend on |
 | --- | --- |
@@ -78,7 +78,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 - **State flows down, events flow up.** A screen has one `UiState` (a sealed interface, or a data class when the states are not exclusive) exposed as `StateFlow<UiState>` from the ViewModel, built with `stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial)`. Compose collects it with `collectAsStateWithLifecycle()`.
 - **The ViewModel is the state holder, not a controller.** It takes use cases and repositories by constructor injection, exposes one function per user event (`onLikeClick(id)`), launches work in `viewModelScope`, and never references `Context`, `Activity`, a `NavController` or any Compose type. One-off effects (navigate, show a snackbar) are events in the state consumed by the screen, which calls `onEventConsumed()`; no `SharedFlow` channel of effects.
 - **The `Route` composable is the only stateful one.** `FeedRoute` obtains the ViewModel (`hiltViewModel()`), collects state and passes `state` plus lambdas into `FeedScreen`, which is stateless and previewable. Below it, composables receive data and callbacks; `remember` keeps only UI-local state (scroll, expanded).
-- Composables are side-effect free in `build`; effects go through `LaunchedEffect(key)` with a real key, `DisposableEffect` for listeners, and `rememberCoroutineScope` for user-triggered work. `Modifier` is the first optional parameter and is applied once at the root of a composable.
+- Composables run no side effects during composition; effects go through `LaunchedEffect(key)` with a real key, `DisposableEffect` for listeners, and `rememberCoroutineScope` for user-triggered work. `Modifier` is the first optional parameter and is applied once at the root of a composable.
 - Models crossing into Compose are stable: data classes of immutable values, `kotlinx.collections.immutable` for lists, no mutable collections in state.
 - Results from the data layer come as `Result<T>` (`Loading`, `Success`, `Error`) via a `Flow<T>.asResult()` extension; expected domain outcomes are a sealed `FeedError` the ViewModel maps exhaustively into state. No exception reaches a ViewModel uncaught; the unexpected ones are logged through the `Logger` port and become the feature's generic error state.
 
@@ -120,7 +120,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 ## 9. Copy, toggles and checks
 
 - All copy in `res/values[-<locale>]/strings.xml`, read through `stringResource`; plurals through `pluralStringResource`. Android Lint's `HardcodedText` and `MissingTranslation` are errors in `lint.xml`, so a missing locale fails the build. Formatting that depends on locale (dates, relative time) goes through a formatter that takes the `Locale`, never a hard-coded pattern.
-- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` backed by remote config or DataStore. A screen checks its flag once, at the entry composable through `FeatureGate`, never deep in a ViewModel or use case. A read that fails keeps the feature off.
+- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` backed by remote config or DataStore. The Route composable reads its flag once, as a field of its `UiState` that the ViewModel takes from the `FeatureFlagsRepository`, and hands the boolean to `FeatureGate`, a pure composable in `core:designsystem` that depends on nothing (so the module table in §1 holds); never deep in a use case. A read that fails keeps the feature off.
 - Lint and format: `ktlint` (or `spotless` running it), `detekt` with the Compose rules (`io.nlopez.compose.rules`), Android Lint with `warningsAsErrors`. Size rules come from detekt's `LongMethod` (40), `LargeClass` and `TooManyFunctions`, with today's offenders in a baseline that may only shrink.
 
 ## 10. Tests
@@ -168,7 +168,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 | `SharedPreferences` for a token | A Keystore-backed `SecureStore` port; DataStore for ordinary settings |
 | A string literal in a composable | `stringResource(R.string.key)`; `HardcodedText` is an error |
 | `Thread.sleep` in a UI test | `waitUntil` on a semantics node; a `testTag` on the thing waited for |
-| A flag read in the ViewModel and again in the screen | The entry composable reads it once through `FeatureGate` and passes the result down |
+| A flag read in the ViewModel and again in the screen | The Route reads it once from the state and hands the boolean to `FeatureGate` |
 | Screenshot references updated without review | The image diff is part of the PR review; an unintended change is a bug |
 
 ## Checklist for a review brief
