@@ -3,25 +3,13 @@
 // latest release (CLAUDE.md, Subagents).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { frontmatter } from "./support/frontmatter.mjs";
 
 const agentsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "agents");
 const MODELS = new Set(["opus", "sonnet", "haiku"]);
-
-function frontmatter(path) {
-  const lines = readFileSync(path, "utf8").split(/\r?\n/);
-  assert.equal(lines[0], "---", `${basename(path)}: no frontmatter`);
-  const end = lines.indexOf("---", 1);
-  assert.notEqual(end, -1, `${basename(path)}: unterminated frontmatter`);
-  const fields = {};
-  for (const line of lines.slice(1, end)) {
-    const i = line.indexOf(":");
-    if (i > 0) fields[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-  }
-  return fields;
-}
 
 const files = readdirSync(agentsDir).filter((f) => f.endsWith(".md"));
 

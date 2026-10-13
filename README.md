@@ -53,7 +53,7 @@ Three things make this hold up over many sessions. Every subagent ends with the 
 
 ## Every agent, once
 
-The pipeline skips the stages that don't apply, and the profile move needed four of the nine agents: no infra changed and nothing new faced outside input. A slice that needs all nine is a public landing page for the product: a new repo on Cloudflare, legal texts, a redirect that reads a query string, and an experiment behind it in the app. Also real; the brief and the ADR that answers it live in the product's own repos.
+The pipeline skips the stages that don't apply, and the profile move needed four of the agents: no infra changed and nothing new faced outside input. A slice that needs all nine is a public landing page for the product: a new repo on Cloudflare, legal texts, a redirect that reads a query string, and an experiment behind it in the app. Also real; the brief and the ADR that answers it live in the product's own repos.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/landing-page-dark.png">
@@ -189,7 +189,7 @@ From a clone you already have: `node install.mjs`, with `--update` to pull first
 
 Then create `~/.claude/git-guard.json` listing the checkouts that serve a dev server, if any, and start a new Claude Code session so it reads the new config.
 
-Check it worked: `/agents` should list the nine agents, `/memory` should show the user `CLAUDE.md` importing this repo's, and `/hooks` should show `git-guard` under `PreToolUse`.
+Check it worked: `/agents` should list the agents in the table above, `/memory` should show the user `CLAUDE.md` importing this repo's, and `/hooks` should show `git-guard` under `PreToolUse`.
 
 ## Not in this repo
 
@@ -198,7 +198,7 @@ Check it worked: `/agents` should list the nine agents, `/memory` should show th
 ## Making changes
 
 - Edit the files here, or through `~/.claude/`, which is the same thing.
-- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run `node install.mjs` so it gets linked. **Third-party skill:** add it to `skills.txt`, or to `skills.optional.txt` if nothing in `CLAUDE.md` depends on it.
+- **New skill of your own:** add `skills/<name>/SKILL.md`, then re-run `node install.mjs` so it gets linked. A new `*-architecture` skill names every sibling architecture skill in its description's "Not for" clause and is added to each sibling's; `node --test tests/skills.test.mjs` checks that, along with every `§N` pointer and every agent name and `*-architecture` skill name the prose mentions. **Third-party skill:** add it to `skills.txt`, or to `skills.optional.txt` if nothing in `CLAUDE.md` depends on it.
 - **New agent:** add `agents/<name>.md` with a `model` alias (`node --test tests/agents.test.mjs` refuses `inherit`), then add it to the roster in `CLAUDE.md` and to the table above. No re-run needed, because the whole folder is linked.
 - **New hook:** add it to `hooks/` with a test, add its entry to `settings.template.json`, and add the same entry to your own `settings.json` (the template isn't re-applied; the installer offers only the hooks it knows). `npm test` runs every test here, the installer's included. Before adding a rule to `CLAUDE.md`, ask whether it belongs here instead.
 - Open a new session to pick up the change (hooks are read at session start), then ship it through a PR (`open-pr`).
