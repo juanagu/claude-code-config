@@ -1,6 +1,6 @@
 ---
 name: "fastify-architecture"
-description: "The architecture every Fastify service in this setup follows, in its three roles (API/microservice, BFF, BullMQ worker): routes → thin controller → use-cases → ports → adapters, one feature plugin per bounded area, schema validation on every route, typed errors mapped by one handler, MongoDB behind repositories, idempotent job processors, and the test layout. Invoke before writing, reviewing or planning any code under a Fastify project (src/, features/, tests/), and when deciding where a new file goes. Not for Next.js/Astro (nextjs-architecture) or Flutter (flutter-architecture)."
+description: "The architecture every Fastify service in this setup follows, in its three roles (API/microservice, BFF, BullMQ worker): routes → thin controller → use-cases → ports → adapters, one feature plugin per bounded area, schema validation on every route, typed errors mapped by one handler, MongoDB behind repositories, idempotent job processors, and the test layout. Invoke before writing, reviewing or planning any code under a Fastify project (src/, features/, tests/), and when deciding where a new file goes. Not for Next.js/Astro (nextjs-architecture), Flutter (flutter-architecture), native Android (android-architecture), native iOS (ios-architecture) or React Native (react-native-architecture)."
 ---
 
 # Fastify architecture

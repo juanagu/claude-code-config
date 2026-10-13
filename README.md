@@ -80,7 +80,7 @@ The same rules hold at this size. The user saw two things before they were built
 
 These load into every session. Default stack and how to choose within it; design defaults (mobile-first for apps, desktop-led for marketing pages, Airbnb as the UX reference, placement before polish, tokens and shared primitives); code principles and the checkable structure rules; feature folders with a `feature_readme.md`; testing, including that a fake for a boundary is validated against the real one; the subagent roster and the feature pipeline; trunk-based workflow and the merge gate; task tracking; knowledge (the repo is the memory, and the cold-start check); feature flags; CodeGraph.
 
-Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that implements that stack, so they load only when that agent runs. A rule that lint or a hook can enforce is enforced there and not restated in prose.
+Stack-specific architecture lives in one `*-architecture` skill per stack (the Skills table below), loaded by whoever writes, plans or reviews code in it; Docker, Compose, CI and Cloudflare conventions live in `devops-engineer`. A rule that lint or a hook can enforce is enforced there and not restated in prose.
 
 ### `agents/`: subagents
 
@@ -105,7 +105,7 @@ Each one ends with the same report shape (changed, verified, deviations, needs t
 
 | Hook | Event | What it does |
 | --- | --- | --- |
-| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses a commit, merge, rebase, cherry-pick or revert on trunk, a push straight to trunk, a force-push to or deletion of it, `--no-verify` (and config overrides that disable hooks or signing), a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree), `gh pr checkout` and `git stash branch` included, and a bare `git stash`, an untagged `stash push`, a `pop`/`drop`/`branch` without a stash reference, or `stash clear` (the stash stack is shared across worktrees and sessions; `stash push -u -m <tag>` then `stash apply <sha>` is the safe form). Follows `cd`, `pushd`, `Push-Location`, their `-Path` forms and `git -C` inside a compound command, including Git Bash paths on Windows. Blocks with the reason, so Claude branches or opens a PR instead. Any error inside the hook fails open. |
+| `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses: a commit, merge, rebase, cherry-pick or revert on trunk; a push straight to trunk, a force-push to or deletion of it, and a bare `git push` from a branch whose upstream is trunk; `--no-verify` (and config overrides that disable hooks or signing); a branch switch in any checkout listed in `~/.claude/git-guard.json` (one that serves a running dev server; use a worktree), `gh pr checkout` and `git stash branch` included; and the unsafe stash forms: an entry without a message (bare `git stash`, `push`, `save`, `store`), a `pop`/`apply`/`drop`/`branch` without a stash reference, or `clear` (the stash stack is shared across worktrees and sessions; `stash push -u -m <tag>` then `stash apply <sha>` is the safe form). Follows `cd`, `cd -`, `pushd`/`popd`, `Push-Location`/`Pop-Location`, their `-Path` forms and `git -C` inside a compound command, Git Bash paths on Windows, and `git.exe`/`gh.exe`. Blocks with the reason and the safe form, so Claude does that instead. Any error inside the hook fails open. |
 
 `npm test` runs its tests with the rest. The hook needs Node and `git` on `PATH`.
 
