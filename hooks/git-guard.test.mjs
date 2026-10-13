@@ -2,7 +2,7 @@
 // Builds two throwaway repos (one listed as protected) and drives the hook the way Claude Code does:
 // JSON on stdin, exit 0 to allow, exit 2 to block.
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -196,10 +196,20 @@ describe("branch switching in a protected checkout", () => {
   });
   it("names the trunk it found in the worktree recipe", () => {
     const repo = makeRepo(home, "served-master", "master");
-    writeFileSync(path.join(home, ".claude", "git-guard.json"), JSON.stringify({ protectedCheckouts: [protectedRepo, repo] }));
-    const r = run("git switch feat/x", repo);
-    assert.equal(r.code, 2);
-    assert.match(r.stderr, /origin\/master/);
+    const config = path.join(home, ".claude", "git-guard.json");
+    const before = readFileSync(config, "utf8");
+    writeFileSync(config, JSON.stringify({ protectedCheckouts: [protectedRepo, repo] }));
+    try {
+      const r = run("git switch feat/x", repo);
+      assert.equal(r.code, 2);
+      assert.match(r.stderr, /origin\/master/);
+    } finally {
+      writeFileSync(config, before);
+    }
+  });
+  it("tracks a bare Push-Location, which pushes the current location and stays", () => {
+    blocked(`Push-Location; Push-Location '${home}'; Pop-Location; git checkout feat/x`, protectedRepo, "PowerShell");
+    allowed(`Push-Location '${home}'; Push-Location; git checkout feat/x`, protectedRepo, "PowerShell");
   });
   it("blocks git stash branch, which switches too", () => {
     blocked("git stash branch feat/y stash@{0}", protectedRepo);
@@ -225,6 +235,9 @@ describe("a branch whose upstream is trunk", () => {
     blocked("git push", repo);
     blocked("git push origin", repo);
     allowed("git push -u origin feat/x", repo);
+    sh(repo, ["switch", "-q", "main"]);
+    blocked("git switch feat/x && git push", repo);
+    sh(repo, ["switch", "-q", "feat/x"]);
   });
   it("tells the safe form", () => {
     const r = run("git push", path.join(home, "tracks-trunk"));
@@ -240,11 +253,16 @@ describe("stash (any repo)", () => {
     blocked("git stash push", plainRepo);
     blocked("git stash push -u", plainRepo);
   });
-  it("blocks pop, drop and branch without a stash reference, and clear", () => {
+  it("blocks pop, apply, drop and branch without a stash reference, and clear", () => {
     blocked("git stash pop", plainRepo);
+    blocked("git stash apply", plainRepo);
     blocked("git stash drop", plainRepo);
     blocked("git stash branch feat/y", plainRepo);
     blocked("git stash clear", plainRepo);
+  });
+  it("allows the help forms", () => {
+    allowed("git stash --help", plainRepo);
+    allowed("git stash -h", plainRepo);
   });
   it("blocks stash save and stash store without a message", () => {
     blocked("git stash save", plainRepo);
