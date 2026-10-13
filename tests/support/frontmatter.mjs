@@ -11,8 +11,9 @@ export function frontmatter(path) {
   assert.notEqual(end, -1, `${basename(path)}: unterminated frontmatter`);
   const fields = {};
   for (const line of lines.slice(1, end)) {
+    if (!line.trim()) continue;
+    assert.match(line, /^[A-Za-z_-]+:/, `${basename(path)}: not a "field: value" line (a wrapped value is not supported): ${line}`);
     const i = line.indexOf(":");
-    if (i <= 0) continue;
     const value = line.slice(i + 1).trim();
     assert.ok(!/^[>|]/.test(value), `${basename(path)}: block scalars are not supported (${line.slice(0, i)})`);
     fields[line.slice(0, i).trim()] = value.replace(/^"(.*)"$/, "$1");
