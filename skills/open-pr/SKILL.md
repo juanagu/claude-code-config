@@ -1,6 +1,6 @@
 ---
 name: "open-pr"
-description: "Opens a pull request following this user's trunk-based-with-PR-gate workflow: verifies the branch is short-lived and off trunk, runs local checks, writes a structured PR description, and creates it via gh. Trigger when the user asks to open/create a PR, put up a PR, or ship a branch for review. Do not trigger for reviewing an existing PR (use code-review) or for resolving review feedback (use resolve-pr-comments)."
+description: "Opens a pull request following this user's trunk-based-with-PR-gate workflow: verifies the branch is short-lived and off trunk, runs local checks, pushes, runs the /code-review passes, writes a structured PR description, and creates it via gh. Trigger when the user asks to open/create a PR, put up a PR, or ship a branch for review. Do not trigger for reviewing an existing PR (use code-review) or for resolving review feedback (use resolve-pr-comments)."
 ---
 
 # Open PR
@@ -25,11 +25,11 @@ Create a pull request that fits this user's trunk-based development model (see `
 - Where the project has a Playwright suite, run `test:e2e:smoke` plus the specs that cover the changed code: every spec file under the same feature folder as a changed file, and every spec whose name shares a changed file's route or feature (`tests/e2e/<feature>*.spec.ts`). The PR's CI runs only the smoke set, so this is the only time the rest runs before release.
 - If checks fail, fix them or stop and tell the user — don't open a PR on a known-broken branch.
 - For non-trivial changes, run the `clean-code` skill or invoke `qa-engineer`/relevant subagent per this repo's pipeline before considering the branch ready, if that hasn't already happened earlier in the task.
-- **A PR opens reviewed.** Run `/code-review high` on the branch (by its absolute worktree path when one exists), fix the verified correctness findings, then run a medium pass, under the bounded loop in `~/.claude/CLAUDE.md` (Workflow). The PR's Testing section lists the passes run and the findings deferred to issues. Opening first and reviewing after is how an unreviewed PR gets merged.
 
 ### 3. Push the branch
 - If the project's CLAUDE.md grants Claude merge rights, push without asking: a project that lets you merge has already let you push. Otherwise confirm once per branch before `git push`, not per action within it.
 - `git push -u origin <branch-name>`. The `git-guard` hook refuses a push to trunk or a force-push to it; if it fires, you are on the wrong branch, so fix that rather than retrying.
+- **A PR opens reviewed.** After the push (so the reviewer has a fetched base, not a stale local `main`), run `/code-review high` from the main session, never from a subagent, on the branch by its absolute worktree path when one exists; fix the verified correctness findings, push again, then run a medium pass, under the bounded loop in `~/.claude/CLAUDE.md` (Workflow). The Testing section of step 4 records the passes. Opening first and reviewing after is how an unreviewed PR gets merged.
 
 ### 4. Write the PR description
 Use conventional-commit-style semantics for the title (`type(scope): summary`, matching the `conventional-commit` skill's types). Structure the body as:
@@ -60,8 +60,8 @@ Pull the actual summary/changes from `git log main..HEAD` and `git diff main...H
 - Report the PR URL back to the user.
 
 ### 6. Gate before merge
-- Remind the user (don't do it unprompted) that `/code-review` is the gate before this PR should be considered mergeable, if it hasn't run yet.
-- This skill only opens the PR — it does not merge it. Merging trunk-based work is still the user's call once CI is green and review is approved.
+- The review passes have run (step 3); what remains of the merge gate in `~/.claude/CLAUDE.md` (Workflow) is CI on the last push and your own re-run of the checks.
+- This skill only opens the PR. Merge it only where the project (or the config repo rule) grants Claude merge rights, and then only under that gate; elsewhere merging is the user's call.
 
 ## Notes
 - If the user's repo doesn't use `main` as trunk (e.g. `master`, `trunk`), detect the actual default branch via `gh repo view --json defaultBranchRef` rather than assuming.
