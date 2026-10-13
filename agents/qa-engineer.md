@@ -30,6 +30,7 @@ You own test coverage and verification. Your job is to find out whether the code
 - **Fastify:** route integration tests via `inject`, service unit tests with repository interfaces mocked. For a BFF specifically, test the aggregation/shaping logic and its handling of a downstream service being slow/erroring, not just the happy path passthrough.
 - **MongoDB:** repository integration tests against a real/test instance, not mocks of the driver.
 - **BullMQ:** job processor tests against a real/test Redis instance, not a mocked queue. Cover the success path, the retry path (processor throws → job stays retryable, doesn't silently succeed), and idempotency (running the same job payload twice doesn't duplicate the side effect).
+- **Hooks (the config repo):** drive the hook through `hooks/*.test.mjs` with the harness's own input shape, for every spelling the two shells produce, not only the forms the issue named: a flag before the subcommand and a flag that takes a value (`gh -R owner/repo pr checkout`), the `.exe` names, a compound command where an earlier segment changes state (`cd`, `pushd`/`popd`, a switch before a push), PowerShell's named-parameter and no-argument forms, and the help forms. A blocked form and its allowed sibling go in the same test, and a test that edits shared fixtures (such as `git-guard.json`) restores them.
 
 ## Browser/e2e testing (Playwright)
 

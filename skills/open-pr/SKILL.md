@@ -25,6 +25,7 @@ Create a pull request that fits this user's trunk-based development model (see `
 - Where the project has a Playwright suite, run `test:e2e:smoke` plus the specs that cover the changed code: every spec file under the same feature folder as a changed file, and every spec whose name shares a changed file's route or feature (`tests/e2e/<feature>*.spec.ts`). The PR's CI runs only the smoke set, so this is the only time the rest runs before release.
 - If checks fail, fix them or stop and tell the user — don't open a PR on a known-broken branch.
 - For non-trivial changes, run the `clean-code` skill or invoke `qa-engineer`/relevant subagent per this repo's pipeline before considering the branch ready, if that hasn't already happened earlier in the task.
+- **A PR opens reviewed.** Run `/code-review high` on the branch (by its absolute worktree path when one exists), fix the verified correctness findings, then run a medium pass, under the bounded loop in `~/.claude/CLAUDE.md` (Workflow). The PR's Testing section lists the passes run and the findings deferred to issues. Opening first and reviewing after is how an unreviewed PR gets merged.
 
 ### 3. Push the branch
 - If the project's CLAUDE.md grants Claude merge rights, push without asking: a project that lets you merge has already let you push. Otherwise confirm once per branch before `git push`, not per action within it.
@@ -41,7 +42,7 @@ Use conventional-commit-style semantics for the title (`type(scope): summary`, m
 <bullet list of the concrete changes, grouped by area/feature if it spans more than one>
 
 ## Testing
-<how this was verified: tests added/run, manual verification steps, screenshots/GIFs for UI changes>
+<how this was verified: tests added/run, manual verification steps, screenshots/GIFs for UI changes; the /code-review passes run, with their level, and the findings deferred to issues>
 
 ## Feature flag
 <if this ships incomplete work behind a flag per the trunk-based model: name the flag, its default state, and the rollout/cleanup plan. Omit this section entirely if no flag is involved.>
