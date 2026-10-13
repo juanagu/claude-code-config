@@ -1,6 +1,6 @@
 ---
 name: "open-pr"
-description: "Opens a pull request following this user's trunk-based-with-PR-gate workflow: verifies the branch is short-lived and off trunk, runs local checks, writes a structured PR description, and creates it via gh. Trigger when the user asks to open/create a PR, put up a PR, or ship a branch for review. Do not trigger for reviewing an existing PR (use code-review) or for resolving review feedback (use resolve-pr-comments)."
+description: "Opens a pull request following this user's trunk-based-with-PR-gate workflow: verifies the branch is short-lived and off trunk, runs local checks, pushes, runs the /code-review passes, writes a structured PR description, and creates it via gh. Trigger when the user asks to open/create a PR, put up a PR, or ship a branch for review. Do not trigger for reviewing an existing PR (use code-review) or for resolving review feedback (use resolve-pr-comments)."
 ---
 
 # Open PR
@@ -29,6 +29,7 @@ Create a pull request that fits this user's trunk-based development model (see `
 ### 3. Push the branch
 - If the project's CLAUDE.md grants Claude merge rights, push without asking: a project that lets you merge has already let you push. Otherwise confirm once per branch before `git push`, not per action within it.
 - `git push -u origin <branch-name>`. The `git-guard` hook refuses a push to trunk or a force-push to it; if it fires, you are on the wrong branch, so fix that rather than retrying.
+- **A PR opens reviewed** (`~/.claude/CLAUDE.md`, Workflow). After the push, `git fetch` so `origin/main` is current, then run the merge gate's review loop (item 1 there) from the main session, on the branch by its absolute worktree path when one exists; after each fix, re-run step 2 before pushing again. If you are a subagent, stop here and report the pushed branch: the main session reviews and opens the PR. The Testing section of step 4 records the passes.
 
 ### 4. Write the PR description
 Use conventional-commit-style semantics for the title (`type(scope): summary`, matching the `conventional-commit` skill's types). Structure the body as:
@@ -41,7 +42,7 @@ Use conventional-commit-style semantics for the title (`type(scope): summary`, m
 <bullet list of the concrete changes, grouped by area/feature if it spans more than one>
 
 ## Testing
-<how this was verified: tests added/run, manual verification steps, screenshots/GIFs for UI changes>
+<how this was verified: tests added/run, manual verification steps, screenshots/GIFs for UI changes; the /code-review passes run, with their level, and the findings deferred to issues>
 
 ## Feature flag
 <if this ships incomplete work behind a flag per the trunk-based model: name the flag, its default state, and the rollout/cleanup plan. Omit this section entirely if no flag is involved.>
@@ -58,9 +59,8 @@ Pull the actual summary/changes from `git log main..HEAD` and `git diff main...H
 - If the user mentioned specific reviewers or the repo has an obvious CODEOWNERS pattern, add `--reviewer`; otherwise skip it rather than guessing.
 - Report the PR URL back to the user.
 
-### 6. Gate before merge
-- Remind the user (don't do it unprompted) that `/code-review` is the gate before this PR should be considered mergeable, if it hasn't run yet.
-- This skill only opens the PR — it does not merge it. Merging trunk-based work is still the user's call once CI is green and review is approved.
+### 6. After opening
+- The skill ends here. What remains of the merge gate in `~/.claude/CLAUDE.md` (Workflow) is CI on the last push and your own re-run of the checks; merging is a separate step, taken only where Claude has merge rights and that gate is met, and otherwise the user's call.
 
 ## Notes
 - If the user's repo doesn't use `main` as trunk (e.g. `master`, `trunk`), detect the actual default branch via `gh repo view --json defaultBranchRef` rather than assuming.

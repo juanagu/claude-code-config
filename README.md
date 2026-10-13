@@ -107,7 +107,7 @@ Each one ends with the same report shape (changed, verified, deviations, needs t
 | --- | --- | --- |
 | `git-guard.mjs` | `PreToolUse` on `Bash` and `PowerShell` | Refuses five kinds of command; the exact forms are the file's header comment, pinned by `git-guard.test.mjs`. Writing commits to trunk (`commit`, `merge`, `rebase`, `cherry-pick`, `revert`, `am`). Pushing to trunk: naming it, a bare `git push` or `git push origin` while on it or from a branch whose upstream is it, a force-push, a deletion. Bypassing hooks: `--no-verify`, `commit -n`, config overrides of hooks or signing. Switching branches in a checkout listed in `~/.claude/git-guard.json`, which serves a running dev server: `switch`, `checkout`, `gh pr checkout` and `gh co`, `git stash branch`, and a stash push, save, pop or apply there, which rewrite its working tree; use a worktree. The unsafe stash forms, because the stash stack is shared across worktrees and sessions: an entry without a message, a `pop`/`apply`/`drop`/`branch` without a stash reference, `clear`. Follows `cd` and `cd -`, `pushd`/`popd`, `Set-Location`, `Push-Location`/`Pop-Location` and the `-Path` forms, and `git -C`, inside a compound command, Git Bash paths on Windows, and `git.exe`/`gh.exe`. Blocks with the reason and, where one exists, the safe command (the worktree recipe, the tagged stash form, `git push -u origin <branch>`). Any error inside the hook fails open. |
 
-`npm test` runs its tests with the rest. The hook needs Node and `git` on `PATH`.
+`npm test` runs its tests with the rest. The hook needs Node and `git` on `PATH`. A change to the hook is verified the way the Hooks bullet under "Per stack" in `agents/qa-engineer.md` says: by every spelling a shell produces, in `hooks/git-guard.test.mjs`.
 
 `~/.claude/git-guard.json` is yours and stays out of git:
 
@@ -127,7 +127,7 @@ Written here, in `skills/`:
 | `react-native-architecture` | The same for React Native on Expo, mirroring the Next.js shape: thin Expo Router files over feature folders with a `lib/` port, TanStack Query and Zustand, Zod at the boundaries, tokens and primitives, MSW validated against the contract, Maestro on both platforms, updates only for JS-only changes. |
 | `nextjs-architecture` | The same for Next.js and Astro: feature `lib/` ports, Server Components, route-group chrome, tokens and primitives, Playwright at two viewports. |
 | `fastify-architecture` | The same for Fastify APIs, BFFs, MongoDB and BullMQ: layering, schemas, typed errors, narrow ports, idempotent jobs. |
-| `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
+| `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, pushes, runs the `/code-review` passes so the PR opens reviewed, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
 | `resolve-pr-comments` | Triages unresolved review comments, fixes them, replies and resolves threads, asking before posting. |
 | `retro` | After something slipped through the pipeline, finds why (no rule, a rule never loaded, a check not run…) and files the strongest fix (a hook or test before a sentence) as an issue for you to approve. Its categories are adapted from [mattpocock/skills](https://github.com/mattpocock/skills). |
 
