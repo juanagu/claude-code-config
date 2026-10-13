@@ -2,7 +2,7 @@
 
 My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents, skills and hooks. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
 
-It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
+It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Kotlin/Compose, Swift/SwiftUI, React Native on Expo, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
 
 ## How it works
 
@@ -90,6 +90,9 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `architect-engineer` | opus | Boundaries and topology (BFF vs direct, new service vs extend, queue vs sync), short ADRs. |
 | `designer` | opus | Where a feature belongs, new components and UX patterns, design tokens. Airbnb as the UX reference. |
 | `frontend-engineer` | sonnet | Next.js/React, Astro and Flutter implementation; the stack architecture comes from the `*-architecture` skills. |
+| `android-engineer` | sonnet | Native Android in Kotlin and Jetpack Compose: screens, ViewModels, Gradle modules; the architecture comes from `android-architecture`. |
+| `ios-engineer` | sonnet | Native iOS in Swift 6 and SwiftUI: views, `@Observable` view models, Swift packages; the architecture comes from `ios-architecture`. |
+| `react-native-engineer` | sonnet | React Native on Expo: Expo Router, TanStack Query, Expo Modules, EAS; the architecture comes from `react-native-architecture`. |
 | `backend-engineer` | sonnet | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
 | `qa-engineer` | sonnet | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
 | `security-engineer` | opus | Security review and threat modelling across the stack. |
@@ -119,6 +122,9 @@ Written here, in `skills/`:
 | Skill | What it does |
 | --- | --- |
 | `flutter-architecture` | The Flutter architecture: layers and the dependency table, feature folders with a composition-root Feature class, ports and adapters, sealed states, toggles, theme and page shell, i18n, tests, anti-patterns, and the review checklist. Loaded before any Dart code. |
+| `android-architecture` | The same for native Android: Google's layered guide with MVVM and unidirectional data flow, one `UiState` per screen, Gradle modules with convention plugins, Hilt, Navigation 3, a `demo` flavor with in-memory data, Material 3 tokens, screenshot tests and managed-device flows. |
+| `ios-architecture` | The same for native iOS: Swift 6 strict concurrency, `@Observable` view models with one `State` enum per screen, Swift packages whose graph enforces the dependency rule, a Feature composition root, typed routes, String Catalogs, snapshot tests and XCUITest, with the macOS runner cost in the CI tiers. |
+| `react-native-architecture` | The same for React Native on Expo, mirroring the Next.js shape: thin Expo Router files over feature folders with a `lib/` port, TanStack Query and Zustand, Zod at the boundaries, tokens and primitives, MSW validated against the contract, Maestro on both platforms, updates only for JS-only changes. |
 | `nextjs-architecture` | The same for Next.js and Astro: feature `lib/` ports, Server Components, route-group chrome, tokens and primitives, Playwright at two viewports. |
 | `fastify-architecture` | The same for Fastify APIs, BFFs, MongoDB and BullMQ: layering, schemas, typed errors, narrow ports, idempotent jobs. |
 | `open-pr` | Opens a PR the trunk-based way: checks the branch, runs local checks, writes the description, creates it with `gh`. Pushes without asking where the project grants merge rights. |
