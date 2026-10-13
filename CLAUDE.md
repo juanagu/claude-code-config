@@ -109,7 +109,7 @@ Small, single-file changes skip this. For anything larger, follow this order, sk
 1. **architect-engineer** — only when the change spans features/layers or introduces a new pattern.
 2. **designer** — whenever the change renders on more than one route or touches global chrome (header, nav, switchers, layout shells), adds or changes a primitive, token or variant, introduces a UX pattern the repo doesn't have, or needs a *home* (a new section, page or entry point) even if its parts exist. The test is how many routes and states it touches, not the size of the diff. The designer hands back a spec — placement, states, exact values, behaviour at 390/768/1280 — that implementation doesn't re-decide, plus an HTML artboard for a new or changed screen. Publish the artboard and get the user's approval before dispatching implementation.
 3. **backend-engineer** and the client's engineer (**frontend-engineer**, **android-engineer**, **ios-engineer** or **react-native-engineer**) implement. If a feature spans both, write the API contract first and hand the literal contract to each.
-4. **qa-engineer** verifies — for UI, including the mobile project and screenshots at both viewports.
+4. **qa-engineer** verifies — for UI, including the mobile Playwright project (web, Flutter) or the phone-and-tablet runs (native Android, iOS, React Native), and the screenshots the Testing rules ask for.
 5. **security-engineer** — auth, payments, external input, data exposure.
 6. **technical-writer** — when user- or developer-facing docs change.
 7. **devops-engineer** — when Docker, CI/CD or Cloudflare config changes.

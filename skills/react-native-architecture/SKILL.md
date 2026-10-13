@@ -34,7 +34,7 @@ src/
 
 | From | May import |
 | --- | --- |
-| `app/` | a feature only through the exports its `feature_readme.md` lists (its screens, `lib/routes.ts`, `lib/params.ts`; for the auth feature also the session store the layout guards read), `shared/`, `i18n/`, `flags/` |
+| `app/` | a feature only through its `index.ts`, which re-exports what its `feature_readme.md` lists (its screens, `lib/routes.ts`, `lib/params.ts`; for the auth feature also the session store the layout guards read), `shared/`, `i18n/`, `flags/` |
 | `features/<f>/` | its own folder, `shared/`, `i18n/`, `flags/`, and another feature **only** through the exports its `feature_readme.md` lists |
 | `shared/`, `i18n/`, `flags/` | `shared/`, never a feature |
 
@@ -105,7 +105,7 @@ tests/
 
 - **Component tests** assert what the user sees and does (role, text from the dictionary, disabled state), never internals; `jest.useFakeTimers()` only when a test needs them.
 - **Maestro is the e2e tier**, on both platforms: every flow runs on an iOS simulator and an Android emulator against the development build with the in-memory backend, in every shipped locale (launch with `--env LOCALE=es` read by the app's dev settings, and assert on the dictionary's strings). Spinners never settle on their own: `extendedWaitUntil` on a `testID`, never a fixed `sleep`.
-- **Screenshots come from the flows**: `takeScreenshot: <screen>-<platform>-<locale>` at a phone size on each platform and at a tablet (iPad or a tablet AVD), light and dark. They are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` / `adb exec-out screencap` against the demo variant.
+- **Screenshots come from the flows**: `takeScreenshot: <screen>-<platform>-<locale>` at a phone and a tablet on each platform (iPhone and iPad, a phone and a tablet AVD), light and dark. They are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` / `adb exec-out screencap` against the demo variant.
 - **Lint, types and size:** `tsc --noEmit`, ESLint with `eslint-config-expo`, `unicorn/filename-case`, `eslint-plugin-boundaries`, `max-lines` (300) and `max-lines-per-function` (40), with a baseline that may only shrink; never a disable comment to get past them.
 - **CI tiers.** Fast, on every PR, on a Linux runner: lint, typecheck, Jest, `expo-doctor`, the contract check, and `npx expo export` to prove the bundle builds. Full, on a `v*` tag, the weekly run and manual runs: an EAS build per platform (or a local prebuild on the runner) and every Maestro flow, Android on a Linux runner with KVM, iOS on a macOS runner, which bills at ten times the Linux rate and is why iOS flows stay out of the PR tier; it opens an issue when red.
 
