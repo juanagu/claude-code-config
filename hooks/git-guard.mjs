@@ -6,8 +6,9 @@
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
 //     `gh pr checkout` included
-//   - no bare `git stash`, `stash pop`, or `stash push` without a message: the stash stack is shared
-//     across worktrees and sessions, so only a tagged entry applied by hash is safe
+//   - no bare `git stash`, no `stash push` without a message, no `pop`/`drop`/`branch` without a stash
+//     reference and no `clear`: the stash stack is shared across worktrees and sessions, so only a
+//     tagged entry applied by hash is safe
 // Blocks with exit code 2 and the reason on stderr. Any error in the hook itself fails open.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -19,6 +20,9 @@ const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
 const CD_COMMANDS = new Set(["cd", "pushd", "Push-Location", "Set-Location", "sl", "chdir"]);
 const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "revert", "am"]);
 const STASH_ACTIONS = new Set(["push", "save", "pop", "apply", "list", "show", "drop", "clear", "branch", "create", "store"]);
+const STASH_SAFE_FORM =
+  "Use git stash push -u -m <tag>, then git stash apply <sha> (git stash list --format='%H %s' shows the hashes), or make a WIP commit on the branch.";
+const GH_VALUE_FLAGS = new Set(["-R", "--repo", "-b", "--branch"]);
 const CREATE_FLAGS = new Set(["-b", "-B", "-c", "-C", "--orphan"]);
 const DISABLING_CONFIG = /^(core\.hookspath|commit\.gpgsign|gpg\.)/i;
 const DEFAULT_TRUNKS = ["main", "master"];
@@ -117,14 +121,20 @@ function skipPrefix(toks) {
   return i;
 }
 
-// `gh pr checkout <n>` (and `gh co`) switches the current checkout to the PR's branch; it is a
-// checkout whose target git cannot resolve yet, so it is treated as one in the directory it runs in.
+// `gh pr checkout <n>` (and `gh co`) switches the current checkout to the PR's branch. It is read as
+// a checkout of `pr/<n>`, a name git cannot resolve yet, so the switch rules apply to it as to any branch.
 function parseGh(toks) {
-  let i = skipPrefix(toks);
+  const i = skipPrefix(toks);
   if (toks[i] !== "gh") return null;
-  const args = toks.slice(i + 1).filter((a) => !a.startsWith("-"));
+  const args = [];
+  for (let j = i + 1; j < toks.length; j++) {
+    if (GH_VALUE_FLAGS.has(toks[j])) j++;
+    else if (!toks[j].startsWith("-")) args.push(toks[j]);
+  }
   const isCheckout = (args[0] === "pr" && args[1] === "checkout") || args[0] === "co";
-  return isCheckout ? { sub: "checkout", rest: [], dirOverride: null, configs: [], gh: true } : null;
+  if (!isCheckout) return null;
+  const pr = args[args[0] === "co" ? 1 : 2] ?? "current";
+  return { sub: "checkout", rest: [`pr/${pr}`], dirOverride: null, configs: [] };
 }
 
 function parseGit(toks) {
@@ -145,16 +155,20 @@ function positionals(rest) {
   return rest.filter((a) => !a.startsWith("-") || a === "-");
 }
 
+// A short flag may sit in a cluster (-am, -uf); one that takes a value may also end the cluster with it attached (-mwip).
+function hasShortFlag(rest, letter, takesValue = false) {
+  const pattern = new RegExp(`^-[a-zA-Z]*${letter}${takesValue ? "" : "[a-zA-Z]*$"}`);
+  return rest.some((a) => pattern.test(a));
+}
+
 function skipsHooks(sub, rest, configs) {
   if (rest.includes("--no-verify")) return true;
   if (configs.some((c) => DISABLING_CONFIG.test(c))) return true;
-  return sub === "commit" && rest.some((a) => /^-[a-zA-Z]*n[a-zA-Z]*$/.test(a));
+  return sub === "commit" && hasShortFlag(rest, "n");
 }
 
 function isForce(rest) {
-  return rest.some(
-    (a) => a === "-f" || a === "--force" || a.startsWith("--force-with-lease") || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a),
-  );
+  return rest.some((a) => a === "--force" || a.startsWith("--force-with-lease")) || hasShortFlag(rest, "f");
 }
 
 // `+main`, `refs/heads/main`, `HEAD:main` and `feat:refs/heads/main` all land on main.
@@ -185,7 +199,8 @@ function switchReason(toplevel) {
   return (
     `${toplevel} serves a running dev server (it is listed in ~/.claude/git-guard.json); ` +
     "switching its branch hot-reloads other code under whoever is using the app. " +
-    "Use a worktree instead: git worktree add ../<repo>-wt-<name> -b <type>/<name>, then copy .env and run npm ci there."
+    "Use a worktree instead: git worktree add ../<repo>-wt-<name> --no-track -b <type>/<name> origin/main, " +
+    "then copy the env files and run npm ci there (~/.claude/CLAUDE.md, Workflow)."
   );
 }
 
@@ -203,22 +218,36 @@ function switchTarget(dir, sub, rest) {
   return looksLikeBranch ? arg : null;
 }
 
-// A stash entry without a message is anonymous on a stack shared by every worktree and session of
-// the repo, and `pop` drops whichever entry is on top. Only a tagged entry applied by hash is safe.
+// The stash stack is shared by every worktree and session of the repo: an entry without a message is
+// anonymous, and an action without a stash reference takes whichever entry is on top.
 function stashReason(rest) {
   const [first, ...more] = positionals(rest);
   const action = STASH_ACTIONS.has(first) ? first : "push";
-  const safeForm = "Use git stash push -u -m <tag>, then git stash apply <sha> (from git stash list), or make a WIP commit on the branch.";
-  if (action === "pop") return `git stash pop applies and drops whatever is on top of a stash stack shared across worktrees and sessions. ${safeForm}`;
-  if (action === "save") return more.length ? null : `git stash save without a message leaves an anonymous entry on a shared stack. ${safeForm}`;
+  const shared = "a stash stack shared across worktrees and sessions";
+  if (action === "clear") return `git stash clear deletes every entry on ${shared}. ${STASH_SAFE_FORM}`;
+  if (action === "pop" || action === "drop" || action === "branch") {
+    const hasRef = more.length >= (action === "branch" ? 2 : 1);
+    return hasRef ? null : `git stash ${action} without a stash reference takes whatever is on top of ${shared}. ${STASH_SAFE_FORM}`;
+  }
+  if (action === "save") return more.length ? null : `git stash save without a message leaves an anonymous entry on ${shared}. ${STASH_SAFE_FORM}`;
   if (action !== "push") return null;
-  const hasMessage = rest.some((a) => a === "-m" || a === "--message" || a.startsWith("--message=") || /^-[a-zA-Z]*m$/.test(a));
-  return hasMessage ? null : `A bare git stash leaves an anonymous entry on a stack shared across worktrees and sessions. ${safeForm}`;
+  const hasMessage = rest.some((a) => a === "--message" || a.startsWith("--message=")) || hasShortFlag(rest, "m", true);
+  return hasMessage ? null : `A bare git stash leaves an anonymous entry on ${shared}. ${STASH_SAFE_FORM}`;
 }
 
-function checkGit({ sub, rest, configs, gh }, dir, state) {
+// `git stash branch <name> <stash>` creates and switches to <name>, so the switch rules apply to it.
+function asSwitch(parsed) {
+  const [action, name] = positionals(parsed.rest);
+  return parsed.sub === "stash" && action === "branch" ? { ...parsed, sub: "switch", rest: ["-c", name] } : parsed;
+}
+
+function checkGit(parsedGit, dir, state) {
+  if (parsedGit.sub === "stash") {
+    const reason = stashReason(parsedGit.rest);
+    if (reason) return reason;
+  }
+  const { sub, rest, configs } = asSwitch(parsedGit);
   if (skipsHooks(sub, rest, configs)) return "--no-verify (or a config override of hooks/signing) is not allowed. Fix what the hook reports instead.";
-  if (sub === "stash") return stashReason(rest);
   let branch;
   let toplevel;
   try {
@@ -235,7 +264,7 @@ function checkGit({ sub, rest, configs, gh }, dir, state) {
   }
   if (sub === "push") return pushReason(rest, onTrunk, trunk);
   if (sub === "switch" || sub === "checkout") {
-    const target = gh ? "-" : switchTarget(dir, sub, rest);
+    const target = switchTarget(dir, sub, rest);
     if (!target) return null;
     if (state.protectedCheckouts.includes(normalize(toplevel))) return switchReason(toplevel);
     if (target !== "-") state.branches.set(normalize(toplevel), target);
@@ -248,8 +277,10 @@ export function check(command, cwd) {
   let dir = toNativePath(cwd);
   for (const segment of splitSegments(command)) {
     const toks = tokens(segment);
-    if (CD_COMMANDS.has(toks[0]) && toks[1]) {
-      dir = path.resolve(dir, toNativePath(toks[1]));
+    // `cd x`, `pushd x`, `Set-Location -Path x`, `Push-Location -LiteralPath x`: the first non-flag token is the path.
+    const target = CD_COMMANDS.has(toks[0]) ? toks.slice(1).find((t) => !t.startsWith("-")) : null;
+    if (target) {
+      dir = path.resolve(dir, toNativePath(target));
       continue;
     }
     const parsed = parseGit(toks);
