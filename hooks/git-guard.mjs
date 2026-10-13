@@ -6,7 +6,8 @@
 //     upstream is trunk (it lands there under push.default=upstream)
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
-//     `gh pr checkout` and `git stash branch` included
+//     `gh pr checkout` and `git stash branch` included, and no stash push, pop or apply there either:
+//     both rewrite the working tree under whoever is using the app
 //   - no stash entry without a message (bare `git stash`, `push`, `save`, `store`), no `pop`, `apply`,
 //     `drop` or `branch` without a stash reference, and no `clear`: the stash stack is shared across
 //     worktrees and sessions, so only a tagged entry applied by hash is safe
@@ -33,6 +34,7 @@ const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "rev
 const STASH_ACTIONS = new Set(["push", "save", "pop", "apply", "list", "show", "drop", "clear", "branch", "create", "store"]);
 const STASH_NEEDS_REF = new Set(["pop", "apply", "drop", "branch"]);
 const STASH_NEEDS_MESSAGE = new Set(["push", "store"]);
+const STASH_REWRITES_TREE = new Set(["push", "save", "pop", "apply"]);
 const STASH_SAFE_FORM =
   "Use git stash push -u -m <tag>, then git stash apply <sha> (git stash list --format='%H %s' shows the hashes), or make a WIP commit on the branch.";
 const GH_VALUE_FLAGS = new Set(["-R", "--repo", "-b", "--branch"]);
@@ -196,10 +198,15 @@ function stashPositionals(rest) {
 
 // The stash stack is shared by every worktree and session of the repo: an entry without a message is
 // anonymous, and an action without a stash reference takes whichever entry is on top.
+function stashAction(rest) {
+  const [first] = stashPositionals(rest);
+  return STASH_ACTIONS.has(first) ? first : "push";
+}
+
 function stashReason(rest) {
   if (rest.includes("--help") || rest.includes("-h")) return null;
-  const [first, ...more] = stashPositionals(rest);
-  const action = STASH_ACTIONS.has(first) ? first : "push";
+  const [, ...more] = stashPositionals(rest);
+  const action = stashAction(rest);
   const shared = "a stash stack shared across worktrees and sessions";
   if (action === "clear") return `git stash clear deletes every entry on ${shared}. ${STASH_SAFE_FORM}`;
   if (STASH_NEEDS_REF.has(action)) {
@@ -216,6 +223,15 @@ function stashReason(rest) {
 function asSwitch(parsed) {
   const [action, name] = stashPositionals(parsed.rest);
   return parsed.sub === "stash" && action === "branch" ? { ...parsed, sub: "switch", rest: ["-c", name] } : parsed;
+}
+
+// A stash push or apply in a served checkout changes the files the dev server is serving, as a switch would.
+function stashInServedReason(toplevel, trunk) {
+  return (
+    `${toplevel} serves a running dev server (it is listed in ~/.claude/git-guard.json); ` +
+    "a stash push or apply rewrites its working tree under whoever is using the app. " +
+    `Move the change out instead: git -C ${toplevel} diff > ../<name>.patch, then git apply it in a worktree (${worktreeRecipe(trunk)}).`
+  );
 }
 
 // Where the segment runs: the checkout's top level, and its branch as of this point in the command
@@ -244,7 +260,11 @@ function checkGit(parsedGit, dir, state) {
   const { toplevel, key, branch } = where;
   const trunk = trunkOf(dir, branch);
   const onTrunk = branch === trunk;
+  const served = state.protectedCheckouts.includes(key);
 
+  if (served && parsedGit.sub === "stash" && STASH_REWRITES_TREE.has(stashAction(parsedGit.rest))) {
+    return stashInServedReason(toplevel, trunk);
+  }
   if (WRITES_COMMITS.has(sub) && onTrunk) {
     return `You are on ${branch}. Writing commits to trunk locally (${sub}) bypasses the PR gate: git switch -c <type>/<name> first, then open a PR.`;
   }
@@ -252,7 +272,7 @@ function checkGit(parsedGit, dir, state) {
   if (sub === "switch" || sub === "checkout") {
     const target = switchTarget(dir, sub, rest);
     if (!target) return null;
-    if (state.protectedCheckouts.includes(key)) return switchReason(toplevel, trunk);
+    if (served) return switchReason(toplevel, trunk);
     if (target !== "-") state.branches.set(key, target);
   }
   return null;

@@ -216,6 +216,15 @@ describe("branch switching in a protected checkout", () => {
     blocked("git stash branch feat/y stash@{0}", protectedRepo);
     allowed("git stash branch feat/y stash@{0}", plainRepo);
   });
+  it("blocks a stash push, pop or apply, which rewrite the served working tree", () => {
+    blocked("git stash push -u -m wip", protectedRepo);
+    blocked("git stash apply stash@{0}", protectedRepo);
+    blocked("git stash pop stash@{0}", protectedRepo);
+    allowed("git stash list && git stash show stash@{0}", protectedRepo);
+    allowed("git stash push -u -m wip && git stash apply stash@{0}", plainRepo);
+    const r = run("git stash push -u -m wip", protectedRepo);
+    assert.match(r.stderr, /diff > \.\.\/<name>\.patch/);
+  });
   it("follows popd, Pop-Location and cd - back out of, and into, a protected checkout", () => {
     allowed(`pushd "${protectedRepo}" && popd && git checkout feat/x`, home);
     blocked(`pushd "${home}" && popd && git checkout feat/x`, protectedRepo);
