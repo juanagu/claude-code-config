@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { worktreeRecipe } from "./git-guard.mjs";
 
 const HOOK = path.join(import.meta.dirname, "git-guard.mjs");
 const onWindows = process.platform === "win32";
@@ -299,4 +300,11 @@ describe("fail open", () => {
     assert.equal(r.status, 0);
   });
   it("allows outside a repository", () => allowed("git commit -m x", home));
+});
+
+describe("the worktree recipe", () => {
+  it("is quoted verbatim in CLAUDE.md, so the hook's message and the rule cannot drift", () => {
+    const claude = readFileSync(path.join(import.meta.dirname, "..", "CLAUDE.md"), "utf8");
+    assert.ok(claude.includes(worktreeRecipe("main")), `CLAUDE.md does not contain: ${worktreeRecipe("main")}`);
+  });
 });
