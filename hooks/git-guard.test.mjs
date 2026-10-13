@@ -194,9 +194,42 @@ describe("branch switching in a protected checkout", () => {
     blocked(`Push-Location -Path '${protectedRepo}'; gh pr checkout 99`, home, "PowerShell");
     blocked(`Set-Location -LiteralPath '${protectedRepo}'; git switch feat/x`, home, "PowerShell");
   });
+  it("names the trunk it found in the worktree recipe", () => {
+    const repo = makeRepo(home, "served-master", "master");
+    writeFileSync(path.join(home, ".claude", "git-guard.json"), JSON.stringify({ protectedCheckouts: [protectedRepo, repo] }));
+    const r = run("git switch feat/x", repo);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /origin\/master/);
+  });
   it("blocks git stash branch, which switches too", () => {
     blocked("git stash branch feat/y stash@{0}", protectedRepo);
     allowed("git stash branch feat/y stash@{0}", plainRepo);
+  });
+  it("follows popd, Pop-Location and cd - back out of, and into, a protected checkout", () => {
+    allowed(`pushd "${protectedRepo}" && popd && git checkout feat/x`, home);
+    blocked(`pushd "${home}" && popd && git checkout feat/x`, protectedRepo);
+    blocked(`cd "${home}" && cd - && git checkout feat/x`, protectedRepo);
+    allowed(`Push-Location '${protectedRepo}'; Pop-Location; git checkout feat/x`, home, "PowerShell");
+  });
+  it("recognises git.exe and gh.exe", () => {
+    blocked("gh.exe pr checkout 99", protectedRepo, "PowerShell");
+    blocked("git.exe commit -m x", plainRepo, "PowerShell");
+  });
+});
+
+describe("a branch whose upstream is trunk", () => {
+  it("blocks a bare push, and allows one that names the branch", () => {
+    const repo = makeRepo(home, "tracks-trunk");
+    sh(repo, ["switch", "-q", "feat/x"]);
+    sh(repo, ["branch", "--set-upstream-to=main"]);
+    blocked("git push", repo);
+    blocked("git push origin", repo);
+    allowed("git push -u origin feat/x", repo);
+  });
+  it("tells the safe form", () => {
+    const r = run("git push", path.join(home, "tracks-trunk"));
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /git push -u origin <branch>/);
   });
 });
 
@@ -213,7 +246,15 @@ describe("stash (any repo)", () => {
     blocked("git stash branch feat/y", plainRepo);
     blocked("git stash clear", plainRepo);
   });
-  it("blocks stash save without a message", () => blocked("git stash save", plainRepo));
+  it("blocks stash save and stash store without a message", () => {
+    blocked("git stash save", plainRepo);
+    blocked("git stash store deadbeef", plainRepo);
+    allowed("git stash store -m wip deadbeef", plainRepo);
+  });
+  it("reads a message that happens to be an action word as the message", () => {
+    allowed("git stash -u -m pop", plainRepo);
+    allowed("git stash push --message clear", plainRepo);
+  });
   it("allows a tagged push, an attached message, and any action naming its entry", () => {
     allowed("git stash push -u -m wip-review", plainRepo);
     allowed("git stash push --message=wip", plainRepo);

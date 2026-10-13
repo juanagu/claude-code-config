@@ -2,7 +2,8 @@
 // PreToolUse hook on Bash and PowerShell. Enforces the mechanical half of the trunk-based workflow in
 // ~/.claude/CLAUDE.md so it never depends on the model remembering a sentence:
 //   - no commit, merge, rebase, cherry-pick, revert or am while on trunk
-//   - no push straight to trunk, no force-push to or deletion of it
+//   - no push straight to trunk, no force-push to or deletion of it, no bare push from a branch whose
+//     upstream is trunk (it lands there under push.default=upstream)
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
 //     `gh pr checkout` included
@@ -18,6 +19,8 @@ import { fileURLToPath } from "node:url";
 
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
 const CD_COMMANDS = new Set(["cd", "pushd", "Push-Location", "Set-Location", "sl", "chdir"]);
+const PUSH_COMMANDS = new Set(["pushd", "Push-Location"]);
+const POP_COMMANDS = new Set(["popd", "Pop-Location"]);
 const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "revert", "am"]);
 const STASH_ACTIONS = new Set(["push", "save", "pop", "apply", "list", "show", "drop", "clear", "branch", "create", "store"]);
 const STASH_SAFE_FORM =
@@ -121,11 +124,14 @@ function skipPrefix(toks) {
   return i;
 }
 
+// PowerShell may spell the tools git.exe and gh.exe.
+const program = (tok) => (tok ?? "").replace(/\.exe$/i, "");
+
 // `gh pr checkout <n>` (and `gh co`) switches the current checkout to the PR's branch. It is read as
 // a checkout of `pr/<n>`, a name git cannot resolve yet, so the switch rules apply to it as to any branch.
 function parseGh(toks) {
   const i = skipPrefix(toks);
-  if (toks[i] !== "gh") return null;
+  if (program(toks[i]) !== "gh") return null;
   const args = [];
   for (let j = i + 1; j < toks.length; j++) {
     if (GH_VALUE_FLAGS.has(toks[j])) j++;
@@ -139,7 +145,7 @@ function parseGh(toks) {
 
 function parseGit(toks) {
   let i = skipPrefix(toks);
-  if (toks[i] !== "git") return parseGh(toks);
+  if (program(toks[i]) !== "git") return null;
   i++;
   let dirOverride = null;
   const configs = [];
@@ -181,26 +187,42 @@ function isHead(ref) {
   return ref === "HEAD" || ref === "@" || /^(HEAD|@)[~^]/.test(ref);
 }
 
-function pushReason(rest, onTrunk, trunk) {
+// The branch this checkout's HEAD tracks, without its remote (`origin/main` → `main`), or null.
+function upstreamOf(dir) {
+  try {
+    return git(dir, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]).replace(/^[^/]+\//, "");
+  } catch {
+    return null;
+  }
+}
+
+function pushReason(rest, onTrunk, trunk, upstream) {
   const refs = positionals(rest);
   const named = refs.some((a) => destinationOf(a) === trunk || (isHead(a) && onTrunk));
   if (rest.includes("--delete") || rest.includes("-d")) {
     return named ? `Deleting the remote ${trunk} isn't allowed.` : null;
   }
   const everything = rest.includes("--all") || rest.includes("--mirror");
-  const implicit = refs.length <= 1 && onTrunk && !rest.includes("--tags");
-  if (!named && !implicit && !everything) return null;
+  const bare = refs.length <= 1 && !rest.includes("--tags");
+  if (bare && !onTrunk && upstream === trunk) {
+    return `This branch tracks ${trunk}, so a bare git push lands on it under push.default=upstream (and refuses under simple). Push with git push -u origin <branch>.`;
+  }
+  if (!named && !(bare && onTrunk) && !everything) return null;
   return isForce(rest) || refs.some((a) => a.startsWith("+"))
     ? `Force-pushing ${trunk} rewrites shared history. Not allowed.`
     : `Pushing straight to ${trunk} bypasses the PR gate. Push a branch and open a PR.`;
 }
 
-function switchReason(toplevel) {
+// The one worktree recipe; CLAUDE.md's Workflow section quotes it and a test keeps the two equal.
+export function worktreeRecipe(trunk) {
+  return `git worktree add ../<repo>-wt-<name> --no-track -b <type>/<name> origin/${trunk}`;
+}
+
+function switchReason(toplevel, trunk) {
   return (
     `${toplevel} serves a running dev server (it is listed in ~/.claude/git-guard.json); ` +
     "switching its branch hot-reloads other code under whoever is using the app. " +
-    "Use a worktree instead: git worktree add ../<repo>-wt-<name> --no-track -b <type>/<name> origin/main, " +
-    "then copy the env files and run npm ci there (~/.claude/CLAUDE.md, Workflow)."
+    `Use a worktree instead: ${worktreeRecipe(trunk)}, then copy the env files and run npm ci there (~/.claude/CLAUDE.md, Workflow).`
   );
 }
 
@@ -218,10 +240,21 @@ function switchTarget(dir, sub, rest) {
   return looksLikeBranch ? arg : null;
 }
 
+// A stash message is a value, not a positional: `git stash -u -m pop` is a push whose message is "pop".
+function stashPositionals(rest) {
+  const out = [];
+  for (let i = 0; i < rest.length; i++) {
+    const a = rest[i];
+    if (a === "--message" || /^-[a-zA-Z]*m$/.test(a)) i++;
+    else if (!a.startsWith("-")) out.push(a);
+  }
+  return out;
+}
+
 // The stash stack is shared by every worktree and session of the repo: an entry without a message is
 // anonymous, and an action without a stash reference takes whichever entry is on top.
 function stashReason(rest) {
-  const [first, ...more] = positionals(rest);
+  const [first, ...more] = stashPositionals(rest);
   const action = STASH_ACTIONS.has(first) ? first : "push";
   const shared = "a stash stack shared across worktrees and sessions";
   if (action === "clear") return `git stash clear deletes every entry on ${shared}. ${STASH_SAFE_FORM}`;
@@ -230,14 +263,14 @@ function stashReason(rest) {
     return hasRef ? null : `git stash ${action} without a stash reference takes whatever is on top of ${shared}. ${STASH_SAFE_FORM}`;
   }
   if (action === "save") return more.length ? null : `git stash save without a message leaves an anonymous entry on ${shared}. ${STASH_SAFE_FORM}`;
-  if (action !== "push") return null;
+  if (action !== "push" && action !== "store") return null;
   const hasMessage = rest.some((a) => a === "--message" || a.startsWith("--message=")) || hasShortFlag(rest, "m", true);
-  return hasMessage ? null : `A bare git stash leaves an anonymous entry on ${shared}. ${STASH_SAFE_FORM}`;
+  return hasMessage ? null : `A git stash ${action} without a message leaves an anonymous entry on ${shared}. ${STASH_SAFE_FORM}`;
 }
 
 // `git stash branch <name> <stash>` creates and switches to <name>, so the switch rules apply to it.
 function asSwitch(parsed) {
-  const [action, name] = positionals(parsed.rest);
+  const [action, name] = stashPositionals(parsed.rest);
   return parsed.sub === "stash" && action === "branch" ? { ...parsed, sub: "switch", rest: ["-c", name] } : parsed;
 }
 
@@ -248,44 +281,63 @@ function checkGit(parsedGit, dir, state) {
   }
   const { sub, rest, configs } = asSwitch(parsedGit);
   if (skipsHooks(sub, rest, configs)) return "--no-verify (or a config override of hooks/signing) is not allowed. Fix what the hook reports instead.";
-  let branch;
   let toplevel;
   try {
     toplevel = git(dir, ["rev-parse", "--show-toplevel"]);
-    branch = state.branches.get(normalize(toplevel)) ?? git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
   } catch {
     return null;
   }
+  const key = normalize(toplevel);
+  // A switch earlier in the same command moved HEAD; from then on only the recorded branch is known.
+  const switched = state.branches.has(key);
+  const branch = switched ? state.branches.get(key) : git(dir, ["rev-parse", "--abbrev-ref", "HEAD"]);
   const trunk = trunkOf(dir, branch);
   const onTrunk = branch === trunk;
 
   if (WRITES_COMMITS.has(sub) && onTrunk) {
     return `You are on ${branch}. Writing commits to trunk locally (${sub}) bypasses the PR gate: git switch -c <type>/<name> first, then open a PR.`;
   }
-  if (sub === "push") return pushReason(rest, onTrunk, trunk);
+  if (sub === "push") return pushReason(rest, onTrunk, trunk, switched ? null : upstreamOf(dir));
   if (sub === "switch" || sub === "checkout") {
     const target = switchTarget(dir, sub, rest);
     if (!target) return null;
-    if (state.protectedCheckouts.includes(normalize(toplevel))) return switchReason(toplevel);
-    if (target !== "-") state.branches.set(normalize(toplevel), target);
+    if (state.protectedCheckouts.includes(key)) return switchReason(toplevel, trunk);
+    if (target !== "-") state.branches.set(key, target);
   }
   return null;
 }
 
+// Follows cd, pushd/popd and their PowerShell forms (`Set-Location -Path x`, `Push-Location -LiteralPath x`,
+// `Pop-Location`), `cd -` and a bare `cd`, so a later git in the same command is checked where it runs.
+function moveDirectory(dirs, toks) {
+  const [cmd, ...args] = toks;
+  const enter = (target) => {
+    dirs.previous = dirs.current;
+    dirs.current = target;
+    return true;
+  };
+  if (POP_COMMANDS.has(cmd)) return enter(dirs.stack.pop() ?? dirs.current);
+  if (!CD_COMMANDS.has(cmd)) return false;
+  const arg = args.find((t) => !t.startsWith("-") || t === "-");
+  if (PUSH_COMMANDS.has(cmd) && arg === undefined) {
+    const top = dirs.stack.pop() ?? dirs.current;
+    dirs.stack.push(dirs.current);
+    return enter(top);
+  }
+  if (PUSH_COMMANDS.has(cmd)) dirs.stack.push(dirs.current);
+  if (arg === "-") return enter(dirs.previous ?? dirs.current);
+  return enter(arg === undefined ? homedir() : path.resolve(dirs.current, toNativePath(arg)));
+}
+
 export function check(command, cwd) {
   const state = { protectedCheckouts: loadProtectedCheckouts(), branches: new Map() };
-  let dir = toNativePath(cwd);
+  const dirs = { current: toNativePath(cwd), previous: null, stack: [] };
   for (const segment of splitSegments(command)) {
     const toks = tokens(segment);
-    // `cd x`, `pushd x`, `Set-Location -Path x`, `Push-Location -LiteralPath x`: the first non-flag token is the path.
-    const target = CD_COMMANDS.has(toks[0]) ? toks.slice(1).find((t) => !t.startsWith("-")) : null;
-    if (target) {
-      dir = path.resolve(dir, toNativePath(target));
-      continue;
-    }
-    const parsed = parseGit(toks);
+    if (moveDirectory(dirs, toks)) continue;
+    const parsed = parseGit(toks) ?? parseGh(toks);
     if (!parsed) continue;
-    const repoDir = parsed.dirOverride ? path.resolve(dir, toNativePath(parsed.dirOverride)) : dir;
+    const repoDir = parsed.dirOverride ? path.resolve(dirs.current, toNativePath(parsed.dirOverride)) : dirs.current;
     const reason = checkGit(parsed, repoDir, state);
     if (reason) return reason;
   }
