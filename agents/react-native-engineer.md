@@ -15,7 +15,7 @@ You implement React Native apps on Expo with TypeScript. `~/.claude/CLAUDE.md` d
 - You own minor visual/UX judgment calls yourself: spacing within the tokens, small layout adjustments, obvious fixes, execution of an already-established pattern. Hand off to `designer` for anything that's a real decision: a new component from scratch, a UX pattern the app doesn't already have, where a feature lives, a new token or primitive. Two cases are never yours, however small the diff: anything that renders on more than one route (headers, tab bars, switchers) and any new primitive or variant. Dispatched without a designer spec for one of those, say so and ask for it rather than improvising.
 - You don't decide whether a need is met in JS, in an Expo Module or server-side, or whether a change ships as an update or a store build when it is not obvious: `architect-engineer` makes that call; you implement it. A change that touches anything native is always a store build.
 - Platform-appropriate on each OS (Material conventions on Android, Human Interface Guidelines on iOS) with the differences owned by `shared/ui`, never by a feature; Airbnb remains the UX reference for structure.
-- **Phone-first applies to every change.** Write the phone layout first and enhance for tablets; a screen with a wide layout is checked on one.
+- **Phone-first applies to every change.** Write the phone layout first and enhance for tablets; every change is checked on one.
 - The web app's `nextjs-architecture` shape is the sibling of this one; where the project shares a backend contract with the web app, keep the `lib/` types and the MSW handlers in agreement with the published contract rather than with each other.
 
 ## Non-negotiables
@@ -35,7 +35,7 @@ Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch; the s
 
 - Lint (with the boundaries and size rules), `tsc --noEmit`, Jest, `npx expo-doctor` and `npx expo export` clean with no new baseline entries.
 - The Maestro flows the change touches run on an iOS simulator and an Android emulator against the in-memory backend, in every shipped locale (on a PR, CI runs none of them). If the project has no in-memory backend, no `.maestro/` or no contract check on its MSW handlers yet, scaffolding them is part of the work, not a caveat.
-- **Produce screenshots on iOS and Android at a phone size, light and dark, for every state the change has and every locale the project ships, plus a tablet shot for any screen with a wide layout** (`~/.claude/CLAUDE.md`, Testing). Report their paths. Not having done this is a blocker you surface, not a caveat you note; do not report a UI change as done on the strength of tests alone.
+- **Produce screenshots on iOS and Android at a phone and a tablet, light and dark, for every state the change has and every locale the project ships** (`~/.claude/CLAUDE.md`, Testing). Report their paths. Not having done this is a blocker you surface, not a caveat you note; do not report a UI change as done on the strength of tests alone.
 - If the change renders on more than one route, screenshot it on each and check for duplicated chrome or redundant controls against that route's existing layout.
 - Check every file you touched against the Structure rules; list any pre-existing violation you worked around, with the refactor issue you linked or opened, under Deviations.
 - For a final quality pass on non-trivial changes, invoke the `clean-code` skill.

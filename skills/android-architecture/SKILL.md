@@ -38,7 +38,7 @@ core/
 feature/<name>/           one module per screen or embeddable surface (layout in §2)
 ```
 
-Imports, enforced by the module graph (a module cannot import what its `build.gradle.kts` does not declare) and by a Konsist test for packages inside a module (§9):
+Imports, enforced by the module graph (a module cannot import what its `build.gradle.kts` does not declare) and by a Konsist test for packages inside a module (§10):
 
 | From | May depend on |
 | --- | --- |
@@ -76,9 +76,9 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 ## 3. Unidirectional data flow
 
 - **State flows down, events flow up.** A screen has one `UiState` (a sealed interface, or a data class when the states are not exclusive) exposed as `StateFlow<UiState>` from the ViewModel, built with `stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial)`. Compose collects it with `collectAsStateWithLifecycle()`.
-- **The ViewModel is the state holder, not a controller.** It takes use cases and repositories by constructor injection, exposes one function per user event (`onLikeClick(id)`), launches work in `viewModelScope`, and never references `Context`, `Activity`, a `NavController` or any Compose type. One-off effects (navigate, show a snackbar) are events in the state consumed by the screen, which calls `onEventConsumed()`; no `SharedFlow` channel of effects.
-- **The `Route` composable is the only stateful one.** `FeedRoute` obtains the ViewModel (`hiltViewModel()`), collects state and passes `state` plus lambdas into `FeedScreen`, which is stateless and previewable. Below it, composables receive data and callbacks; `remember` keeps only UI-local state (scroll, expanded).
-- Composables are side-effect free in `build`; effects go through `LaunchedEffect(key)` with a real key, `DisposableEffect` for listeners, and `rememberCoroutineScope` for user-triggered work. `Modifier` is the first optional parameter and is applied once at the root of a composable.
+- **The ViewModel is the state holder, not a controller.** It takes use cases and repositories by constructor injection, exposes one function per user event (`onLikeClick(id)`), launches work in `viewModelScope` only from `uiState`'s `stateIn` or from an event function (never from `init`, so an instance that nobody collects does nothing), and never references `Context`, `Activity`, a `NavController` or any Compose type. One-off effects (navigate, show a snackbar) are events in the state consumed by the screen, which calls `onEventConsumed()`; no `SharedFlow` channel of effects.
+- **The `Route` composable is the only stateful one.** `FeedRoute` obtains the ViewModel (`hiltViewModel()`), collects `enabled` first when the feature is toggled (§9), then inside the gate collects `uiState` and passes `state` plus lambdas into `FeedScreen`, which is stateless and previewable. Below it, composables receive data and callbacks; `remember` keeps only UI-local state (scroll, expanded).
+- Composables run no side effects during composition; effects go through `LaunchedEffect(key)` with a real key, `DisposableEffect` for listeners, and `rememberCoroutineScope` for user-triggered work. `Modifier` is the first optional parameter and is applied once at the root of a composable.
 - Models crossing into Compose are stable: data classes of immutable values, `kotlinx.collections.immutable` for lists, no mutable collections in state.
 - Results from the data layer come as `Result<T>` (`Loading`, `Success`, `Error`) via a `Flow<T>.asResult()` extension; expected domain outcomes are a sealed `FeedError` the ViewModel maps exhaustively into state. No exception reaches a ViewModel uncaught; the unexpected ones are logged through the `Logger` port and become the feature's generic error state.
 
@@ -94,7 +94,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 
 - Hilt, with `@HiltViewModel` + `@Inject constructor` for ViewModels and `@Binds` modules in `core:data` binding each repository interface to its implementation. Koin only when the project already uses it.
 - Everything feature-specific is built by Hilt from the feature's constructors; nothing feature-specific is registered app-wide. App-wide services (logger, dispatchers, flags, analytics, the network client) are singletons provided by their `core:` module.
-- `app` is the composition root: `Application` (`@HiltAndroidApp`), one `MainActivity` (`@AndroidEntryPoint`) hosting the `NavDisplay`, the back stack, and the theme. Nothing else lives there.
+- `app` is the composition root: `Application` (`@HiltAndroidApp`), one `MainActivity` (`@AndroidEntryPoint`) hosting the `NavDisplay`, the back stack, the theme and the splash gate that awaits the flags (§9). Nothing else lives there.
 - Flavors select the backend: `demo` binds in-memory data sources seeded with demo data (§6); `prod` binds the real ones. Build types (`debug`, `release`) stay orthogonal.
 
 ## 6. Every outside dependency has a fake
@@ -120,7 +120,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 ## 9. Copy, toggles and checks
 
 - All copy in `res/values[-<locale>]/strings.xml`, read through `stringResource`; plurals through `pluralStringResource`. Android Lint's `HardcodedText` and `MissingTranslation` are errors in `lint.xml`, so a missing locale fails the build. Formatting that depends on locale (dates, relative time) goes through a formatter that takes the `Locale`, never a hard-coded pattern.
-- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` backed by remote config or DataStore. A screen checks its flag once, at the entry composable through `FeatureGate`, never deep in a ViewModel or use case. A read that fails keeps the feature off.
+- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` with two operations: `fun flag(key: FlagKey): StateFlow<Boolean>`, seeded from the defaults, and `suspend fun load()`, the remote config or DataStore read with a short timeout. `MainActivity` keeps the splash screen on (`setKeepOnScreenCondition`) until a `StartupViewModel` has awaited `load()`, so every later read is synchronous; never `runBlocking`. The ViewModel exposes `enabled: StateFlow<Boolean> = flags.flag(key)` as its own property, never a case of the sealed `UiState`. The Route collects `enabled` first and hands the boolean to `FeatureGate`, a pure composable in `core:designsystem` that depends on nothing (so the module table in §1 holds), and collects `uiState` only inside the gate: with `WhileSubscribed` the data flow starts on first collection and §3 forbids `init` work, so a feature that is off never loads. A render-only feature with no ViewModel is gated by `app`: its entry provider reads `flags.flag(key)` and passes `enabled` into the Route. Never read a flag in a use case. A `load()` that fails keeps the defaults (off in production, per the Feature flags rule) and logs through the `Logger` port.
 - Lint and format: `ktlint` (or `spotless` running it), `detekt` with the Compose rules (`io.nlopez.compose.rules`), Android Lint with `warningsAsErrors`. Size rules come from detekt's `LongMethod` (40), `LargeClass` and `TooManyFunctions`, with today's offenders in a baseline that may only shrink.
 
 ## 10. Tests
@@ -149,7 +149,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 3. The repository interface in `core:data` if the data is new (returning `Flow`/`suspend`), its implementation, a fake in `core:testing`, and the `demo` binding.
 4. `<Name>ViewModel.kt`: `@HiltViewModel`, state through `stateIn`, one function per event, exhaustive `when` over errors.
 5. `<Name>Screen.kt`: `<Name>Route` (stateful) and `<Name>Screen` (stateless) inside `ScreenScaffold`, composing `core:designsystem`; copy in every `strings.xml`; a `@Preview` per state.
-6. `navigation/<Name>Navigation.kt`: the `NavKey` and the entry-provider extension; wire it in `app`. If toggled, add the key to `FeatureFlags` and gate the entry composable.
+6. `navigation/<Name>Navigation.kt`: the `NavKey` and the entry-provider extension; wire it in `app`. If toggled, add the key to `FeatureFlags`, expose `enabled` on the ViewModel and gate the Route as §9 says.
 7. Tests from §10: ViewModel, screenshot per state, the flow if it is critical. Add `feature_readme.md`.
 
 ## 12. What goes wrong, and the correct form
@@ -168,7 +168,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 | `SharedPreferences` for a token | A Keystore-backed `SecureStore` port; DataStore for ordinary settings |
 | A string literal in a composable | `stringResource(R.string.key)`; `HardcodedText` is an error |
 | `Thread.sleep` in a UI test | `waitUntil` on a semantics node; a `testTag` on the thing waited for |
-| A flag read in the ViewModel and again in the screen | The entry composable reads it once through `FeatureGate` and passes the result down |
+| A flag read in the ViewModel and again in the screen | The ViewModel's `enabled` flow, collected once by the Route and handed to `FeatureGate` |
 | Screenshot references updated without review | The image diff is part of the PR review; an unintended change is a bug |
 
 ## Checklist for a review brief
@@ -182,7 +182,7 @@ Copy into every `/code-review` brief for Android work:
 5. Navigation keys are `@Serializable` ids, exposed through the feature's entry extension; screens get lambdas, never the back stack.
 6. No raw hex, dp or sp outside `core:designsystem`; new UI composes its primitives; `ScreenScaffold` owns insets and back-blocking; 48dp targets and content descriptions present.
 7. Every `strings.xml` updated; `HardcodedText` and `MissingTranslation` are errors and the lint is green.
-8. Toggles checked once at the entry composable through `FeatureGate`.
+8. Toggles read once, as the ViewModel's `enabled` flow collected by the Route before `uiState`, and applied through `FeatureGate`.
 9. Tests follow §10: ViewModel states through Turbine with fakes; screenshot tests per state at phone and tablet, light and dark, every locale, references reviewed; a changed critical flow has its instrumented test run on the managed device, with screenshots linked.
 10. Files ~300 lines, functions ~40 (detekt `LongMethod`), composables ~200, counting no blanks or comments; `ktlint`, `detekt` and Android Lint green with no new baseline entries.
 11. File names PascalCase after the one top-level declaration; test files `<Name>Test.kt`.

@@ -27,7 +27,7 @@ These come up often enough in this stack to name explicitly:
 2. Name the real tradeoff. Every non-trivial choice has one (coupling vs duplication, consistency vs simplicity, now vs later cost) — state it, don't hide behind "best practice."
 3. Prefer the boring, well-understood option unless there's a concrete, stated reason to do otherwise — not a hypothetical future need.
 4. When a decision is worth remembering, write a short ADR: context, decision, consequences. A few paragraphs, not a document. Follow the repo's existing convention for where such docs live, or ask if there isn't one. When the boundary/flow is non-obvious from prose alone (new service boundaries, a request lifecycle, a data pipeline), use the `archify` skill to produce an accompanying architecture/workflow/sequence diagram rather than ASCII art — author the JSON source and run `archify validate`/`deliver` yourself; if your shell doesn't work, hand the source back unvalidated and say so.
-5. Name the handoff explicitly (e.g., "backend-engineer owns the repository interface, frontend-engineer consumes it") so it's unambiguous who builds what.
+5. Name the handoff explicitly (e.g., "backend-engineer owns the repository interface, the client's engineer consumes it") so it's unambiguous who builds what.
 
 Ask the user when a decision genuinely depends on information only they have (scale expectations, team constraints, business priority) — don't guess at things that aren't derivable from the code or the request.
 

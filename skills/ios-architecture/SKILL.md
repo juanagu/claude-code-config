@@ -21,7 +21,7 @@ Packages/
   Integrations/<Vendor>/          adapters: Firebase/, Keychain/, URLSessionAPI/, InMemory/
 ```
 
-Imports, enforced by the package graph (a target cannot `import` a module its `Package.swift` does not list as a dependency) and by a test that scans `import` lines (§9):
+Imports, enforced by the package graph (a target cannot `import` a module its `Package.swift` does not list as a dependency) and by a test that scans `import` lines (§11):
 
 | From | May import (inside the project) |
 | --- | --- |
