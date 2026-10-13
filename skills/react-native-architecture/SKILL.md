@@ -21,7 +21,7 @@ src/
     screens/                one screen component per route, composing the feature's components inside Screen
     components/             presentational and compositional; never fetch
     hooks/                  state, effects, decisions; the feature's TanStack queries and mutations (use-feed.ts)
-    lib/                    the feature's port: narrow functions over the transport, request/response schemas (Zod) and types beside them; routes.ts for every href the feature owns
+    lib/                    the feature's port: narrow functions over the transport, request/response schemas (Zod) and types beside them; routes.ts for every href the feature owns; params.ts for the schemas its route files validate params with
     store/                  a Zustand store only when client state outlives one screen
     feature_readme.md       purpose, exposed interface (the exports other features may import), data flow
   shared/
@@ -34,7 +34,7 @@ src/
 
 | From | May import |
 | --- | --- |
-| `app/` | `features/*/screens`, `features/*/lib/routes.ts`, `features/*/lib/params.ts` (the param schemas its route files validate with), `features/auth/store` (the session store the layout guards read), `shared/`, `i18n/`, `flags/` |
+| `app/` | a feature only through the exports its `feature_readme.md` lists (its screens, `lib/routes.ts`, `lib/params.ts`; for the auth feature also the session store the layout guards read), `shared/`, `i18n/`, `flags/` |
 | `features/<f>/` | its own folder, `shared/`, `i18n/`, `flags/`, and another feature **only** through the exports its `feature_readme.md` lists |
 | `shared/`, `i18n/`, `flags/` | `shared/`, never a feature |
 
