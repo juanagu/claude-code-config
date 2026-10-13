@@ -4,7 +4,10 @@
 //   - no commit, merge, rebase, cherry-pick, revert or am while on trunk
 //   - no push straight to trunk, no force-push to or deletion of it
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
-//   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server)
+//   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
+//     `gh pr checkout` included
+//   - no bare `git stash`, `stash pop`, or `stash push` without a message: the stash stack is shared
+//     across worktrees and sessions, so only a tagged entry applied by hash is safe
 // Blocks with exit code 2 and the reason on stderr. Any error in the hook itself fails open.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
@@ -13,8 +16,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
-const CD_COMMANDS = new Set(["cd", "pushd", "Set-Location", "sl", "chdir"]);
+const CD_COMMANDS = new Set(["cd", "pushd", "Push-Location", "Set-Location", "sl", "chdir"]);
 const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "revert", "am"]);
+const STASH_ACTIONS = new Set(["push", "save", "pop", "apply", "list", "show", "drop", "clear", "branch", "create", "store"]);
 const CREATE_FLAGS = new Set(["-b", "-B", "-c", "-C", "--orphan"]);
 const DISABLING_CONFIG = /^(core\.hookspath|commit\.gpgsign|gpg\.)/i;
 const DEFAULT_TRUNKS = ["main", "master"];
@@ -107,10 +111,25 @@ function tokens(segment) {
   return matches.map((t) => t.replace(/^["']|["']$/g, ""));
 }
 
-function parseGit(toks) {
+function skipPrefix(toks) {
   let i = 0;
   while (i < toks.length && (toks[i] === "rtk" || /^[A-Za-z_][A-Za-z0-9_]*=/.test(toks[i]))) i++;
-  if (toks[i] !== "git") return null;
+  return i;
+}
+
+// `gh pr checkout <n>` (and `gh co`) switches the current checkout to the PR's branch; it is a
+// checkout whose target git cannot resolve yet, so it is treated as one in the directory it runs in.
+function parseGh(toks) {
+  let i = skipPrefix(toks);
+  if (toks[i] !== "gh") return null;
+  const args = toks.slice(i + 1).filter((a) => !a.startsWith("-"));
+  const isCheckout = (args[0] === "pr" && args[1] === "checkout") || args[0] === "co";
+  return isCheckout ? { sub: "checkout", rest: [], dirOverride: null, configs: [], gh: true } : null;
+}
+
+function parseGit(toks) {
+  let i = skipPrefix(toks);
+  if (toks[i] !== "git") return parseGh(toks);
   i++;
   let dirOverride = null;
   const configs = [];
@@ -184,8 +203,22 @@ function switchTarget(dir, sub, rest) {
   return looksLikeBranch ? arg : null;
 }
 
-function checkGit({ sub, rest, configs }, dir, state) {
+// A stash entry without a message is anonymous on a stack shared by every worktree and session of
+// the repo, and `pop` drops whichever entry is on top. Only a tagged entry applied by hash is safe.
+function stashReason(rest) {
+  const [first, ...more] = positionals(rest);
+  const action = STASH_ACTIONS.has(first) ? first : "push";
+  const safeForm = "Use git stash push -u -m <tag>, then git stash apply <sha> (from git stash list), or make a WIP commit on the branch.";
+  if (action === "pop") return `git stash pop applies and drops whatever is on top of a stash stack shared across worktrees and sessions. ${safeForm}`;
+  if (action === "save") return more.length ? null : `git stash save without a message leaves an anonymous entry on a shared stack. ${safeForm}`;
+  if (action !== "push") return null;
+  const hasMessage = rest.some((a) => a === "-m" || a === "--message" || a.startsWith("--message=") || /^-[a-zA-Z]*m$/.test(a));
+  return hasMessage ? null : `A bare git stash leaves an anonymous entry on a stack shared across worktrees and sessions. ${safeForm}`;
+}
+
+function checkGit({ sub, rest, configs, gh }, dir, state) {
   if (skipsHooks(sub, rest, configs)) return "--no-verify (or a config override of hooks/signing) is not allowed. Fix what the hook reports instead.";
+  if (sub === "stash") return stashReason(rest);
   let branch;
   let toplevel;
   try {
@@ -202,7 +235,7 @@ function checkGit({ sub, rest, configs }, dir, state) {
   }
   if (sub === "push") return pushReason(rest, onTrunk, trunk);
   if (sub === "switch" || sub === "checkout") {
-    const target = switchTarget(dir, sub, rest);
+    const target = gh ? "-" : switchTarget(dir, sub, rest);
     if (!target) return null;
     if (state.protectedCheckouts.includes(normalize(toplevel))) return switchReason(toplevel);
     if (target !== "-") state.branches.set(normalize(toplevel), target);
@@ -234,7 +267,7 @@ function main() {
     const input = JSON.parse(readFileSync(0, "utf8"));
     if (!SHELL_TOOLS.has(input.tool_name)) return 0;
     const command = input.tool_input?.command ?? "";
-    if (!/\bgit\b/.test(command)) return 0;
+    if (!/\b(git|gh)\b/.test(command)) return 0;
     reason = check(command, input.cwd ?? process.cwd());
   } catch {
     return 0;

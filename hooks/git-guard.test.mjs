@@ -174,6 +174,45 @@ describe("branch switching in a protected checkout", () => {
     blocked("git checkout --orphan fresh", protectedRepo);
   });
   it("allows switching in a repo that is not protected", () => allowed("git switch feat/x", plainRepo));
+  it("blocks gh pr checkout, which switches the branch without saying git", () => {
+    blocked("gh pr checkout 99", protectedRepo);
+    blocked("gh co 99", protectedRepo);
+    blocked("gh pr checkout 99 --detach", protectedRepo);
+    blocked(`cd "${protectedRepo}" && gh pr checkout 99`, home);
+  });
+  it("allows gh pr checkout in a plain repo, and read-only gh anywhere", () => {
+    allowed("gh pr checkout 99", plainRepo);
+    allowed("gh pr list && gh pr view 99", protectedRepo);
+  });
+  it("follows pushd and Push-Location into a protected checkout", () => {
+    blocked(`pushd "${protectedRepo}" && git checkout feat/x`, home);
+    blocked(`Push-Location '${protectedRepo}'; git checkout feat/x`, home, "PowerShell");
+    blocked(`Push-Location '${protectedRepo}'; gh pr checkout 99`, home, "PowerShell");
+  });
+});
+
+describe("stash (any repo)", () => {
+  it("blocks a bare stash, with or without flags", () => {
+    blocked("git stash", plainRepo);
+    blocked("git stash -u", plainRepo);
+    blocked("git stash push", plainRepo);
+    blocked("git stash push -u", plainRepo);
+  });
+  it("blocks stash pop", () => blocked("git stash pop", plainRepo));
+  it("blocks stash save without a message", () => blocked("git stash save", plainRepo));
+  it("allows a tagged push and an apply by hash", () => {
+    allowed("git stash push -u -m wip-review", plainRepo);
+    allowed("git stash push --message=wip", plainRepo);
+    allowed("git stash -um wip", plainRepo);
+    allowed("git stash save wip", plainRepo);
+    allowed("git stash apply stash@{0}", plainRepo);
+    allowed("git stash list && git stash show -p stash@{1}", plainRepo);
+  });
+  it("names the safe form in the reason", () => {
+    const r = run("git stash", plainRepo);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /git stash push -u -m <tag>/);
+  });
 });
 
 describe("fail open", () => {
