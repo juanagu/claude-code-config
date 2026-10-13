@@ -227,9 +227,13 @@ describe("branch switching in a protected checkout", () => {
     allowed("git stash list && git stash show stash@{0}", protectedRepo);
     allowed("git stash create && git stash store -m wip deadbeef", protectedRepo);
     allowed("git stash --help && git stash -h", protectedRepo);
-    const r = run("git stash", protectedRepo);
-    assert.equal(r.code, 2);
-    assert.match(r.stderr, /git stash create, then git stash store -m <tag> <sha>/);
+    for (const form of ["git stash", "git stash -u", "git stash -p", "git stash pop", "git stash apply"]) {
+      const r = run(form, protectedRepo);
+      assert.equal(r.code, 2, form);
+      assert.match(r.stderr, /git stash create, then git stash store -m <tag> <sha>/, form);
+    }
+    blocked("git stash push -m -h", protectedRepo);
+    allowed("git stash -u -m --help", plainRepo);
   });
   it("follows popd, Pop-Location and cd - back out of, and into, a protected checkout", () => {
     allowed(`pushd "${protectedRepo}" && popd && git checkout feat/x`, home);
@@ -315,6 +319,10 @@ describe("fail open", () => {
     assert.equal(r.status, 0);
   });
   it("allows outside a repository", () => allowed("git commit -m x", home));
+  it("still refuses the unsafe stash forms where the repo cannot be located", () => {
+    blocked("git stash", home);
+    blocked('cd "$REPO" && git stash pop', home);
+  });
 });
 
 describe("the worktree recipe", () => {

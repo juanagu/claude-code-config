@@ -6,8 +6,9 @@
 //     upstream is trunk (it lands there under push.default=upstream)
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
-//     `gh pr checkout` and `git stash branch` included, and no stash push, save, pop or apply there
-//     either: stashing is the parking move before a switch, and it rewrites the served working tree
+//     `gh pr checkout` and `git stash branch` included, and no stash push (a bare `git stash` included),
+//     save, pop or apply there either: stashing is the parking move before a switch, and it rewrites
+//     the served working tree
 //   - no stash entry without a message (bare `git stash`, `push`, `save`, `store`), no `pop`, `apply`,
 //     `drop` or `branch` without a stash reference, and no `clear`: the stash stack is shared across
 //     worktrees and sessions, so only a tagged entry applied by hash is safe
@@ -179,8 +180,9 @@ function stashInServedReason(toplevel, trunk) {
   return (
     servedPreamble(toplevel) +
     "a stash push, save, pop or apply rewrites its working tree under whoever is using the app. " +
-    "Park the change without touching the tree: git stash create, then git stash store -m <tag> <sha> " +
-    `(tracked changes only; copy untracked files by hand), and git stash apply <sha> in a worktree (${worktreeRecipe(trunk)}).`
+    "Record the change without a second rewrite: git stash create, then git stash store -m <tag> <sha> " +
+    `(tracked changes only; copy untracked files by hand), and git stash apply <sha> in a worktree (${worktreeRecipe(trunk)}). ` +
+    "The served tree keeps its uncommitted edits; tell the user, since cleaning it is their call."
   );
 }
 
@@ -198,24 +200,29 @@ function switchTarget(dir, sub, rest) {
   return looksLikeBranch ? arg : null;
 }
 
-// A stash message is a value, not a positional: `git stash -u -m pop` is a push whose message is "pop".
-function stashPositionals(rest) {
-  const out = [];
+// A stash message is a value, not a positional or a flag: `git stash -u -m pop` is a push whose message
+// is "pop", and `-m -h` is not a request for help.
+function stashArgs(rest) {
+  const args = [];
+  const flags = [];
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (a === "--message" || /^-[a-zA-Z]*m$/.test(a)) i++;
-    else if (!a.startsWith("-")) out.push(a);
+    if (a === "--message" || /^-[a-zA-Z]*m$/.test(a)) {
+      flags.push(a);
+      i++;
+    } else if (a.startsWith("-")) flags.push(a);
+    else args.push(a);
   }
-  return out;
+  return { args, flags };
 }
 
-const isHelp = (rest) => rest.includes("--help") || rest.includes("-h");
+const stashPositionals = (rest) => stashArgs(rest).args;
+
 const stashAction = (args) => (STASH_ACTIONS.has(args[0]) ? args[0] : "push");
 
 // The stash stack is shared by every worktree and session of the repo: an entry without a message is
 // anonymous, and an action without a stash reference takes whichever entry is on top.
-function stashReason(rest) {
-  const args = stashPositionals(rest);
+function stashReason(rest, args) {
   const action = stashAction(args);
   const more = args.slice(1);
   const shared = "a stash stack shared across worktrees and sessions";
@@ -250,15 +257,24 @@ function locate(dir, state) {
   }
 }
 
-// The served-checkout rule comes first, so a bare `git stash` there is sent to the parking recipe
-// rather than to a tagged push the next check would refuse.
-function stashReasons(parsedGit, served, toplevel, trunk) {
-  if (parsedGit.sub !== "stash" || isHelp(parsedGit.rest)) return null;
-  if (served && STASH_REWRITES_TREE.has(stashAction(stashPositionals(parsedGit.rest)))) return stashInServedReason(toplevel, trunk);
-  return stashReason(parsedGit.rest);
+// The shared-stack rule is syntactic and holds even where the repo cannot be located. The served rule
+// needs the repo and comes first where it applies, so a bare `git stash` in a served checkout is sent to
+// the recording recipe rather than to a tagged push the next check would refuse.
+function stashReasons(rest, dir, state) {
+  const { args, flags } = stashArgs(rest);
+  if (flags.includes("--help") || flags.includes("-h")) return null;
+  if (STASH_REWRITES_TREE.has(stashAction(args))) {
+    const where = locate(dir, state);
+    if (where && state.protectedCheckouts.includes(where.key)) return stashInServedReason(where.toplevel, trunkOf(dir, where.branch));
+  }
+  return stashReason(rest, args);
 }
 
 function checkGit(parsedGit, dir, state) {
+  if (parsedGit.sub === "stash") {
+    const reason = stashReasons(parsedGit.rest, dir, state);
+    if (reason) return reason;
+  }
   const { sub, rest, configs } = asSwitch(parsedGit);
   if (skipsHooks(sub, rest, configs)) return "--no-verify (or a config override of hooks/signing) is not allowed. Fix what the hook reports instead.";
   const where = locate(dir, state);
@@ -268,8 +284,6 @@ function checkGit(parsedGit, dir, state) {
   const onTrunk = branch === trunk;
   const served = state.protectedCheckouts.includes(key);
 
-  const stash = stashReasons(parsedGit, served, toplevel, trunk);
-  if (stash) return stash;
   if (WRITES_COMMITS.has(sub) && onTrunk) {
     return `You are on ${branch}. Writing commits to trunk locally (${sub}) bypasses the PR gate: git switch -c <type>/<name> first, then open a PR.`;
   }
