@@ -216,6 +216,25 @@ describe("branch switching in a protected checkout", () => {
     blocked("git stash branch feat/y stash@{0}", protectedRepo);
     allowed("git stash branch feat/y stash@{0}", plainRepo);
   });
+  it("blocks a stash push, save, pop or apply, which rewrite the served working tree", () => {
+    blocked("git stash push -u -m wip", protectedRepo);
+    blocked("git stash save wip", protectedRepo);
+    blocked("git stash apply stash@{0}", protectedRepo);
+    blocked("git stash pop stash@{0}", protectedRepo);
+    allowed("git stash push -u -m wip && git stash apply stash@{0}", plainRepo);
+  });
+  it("allows the stash forms that leave the served tree alone, and points a bare stash at them", () => {
+    allowed("git stash list && git stash show stash@{0}", protectedRepo);
+    allowed("git stash create && git stash store -m wip deadbeef", protectedRepo);
+    allowed("git stash --help && git stash -h", protectedRepo);
+    for (const form of ["git stash", "git stash -u", "git stash -p", "git stash pop", "git stash apply"]) {
+      const r = run(form, protectedRepo);
+      assert.equal(r.code, 2, form);
+      assert.match(r.stderr, /git stash create, then git stash store -m <tag> <sha>/, form);
+    }
+    blocked("git stash push -m -h", protectedRepo);
+    allowed("git stash -u -m --help", plainRepo);
+  });
   it("follows popd, Pop-Location and cd - back out of, and into, a protected checkout", () => {
     allowed(`pushd "${protectedRepo}" && popd && git checkout feat/x`, home);
     blocked(`pushd "${home}" && popd && git checkout feat/x`, protectedRepo);
@@ -300,6 +319,10 @@ describe("fail open", () => {
     assert.equal(r.status, 0);
   });
   it("allows outside a repository", () => allowed("git commit -m x", home));
+  it("still refuses the unsafe stash forms where the repo cannot be located", () => {
+    blocked("git stash", home);
+    blocked('cd "$REPO" && git stash pop', home);
+  });
 });
 
 describe("the worktree recipe", () => {

@@ -6,7 +6,9 @@
 //     upstream is trunk (it lands there under push.default=upstream)
 //   - no --no-verify, commit -n, or a -c override that disables hooks or signing
 //   - no branch switch in a checkout listed in ~/.claude/git-guard.json (it serves a dev server),
-//     `gh pr checkout` and `git stash branch` included
+//     `gh pr checkout` and `git stash branch` included, and no stash push (a bare `git stash` included),
+//     save, pop or apply there either: stashing is the parking move before a switch, and it rewrites
+//     the served working tree
 //   - no stash entry without a message (bare `git stash`, `push`, `save`, `store`), no `pop`, `apply`,
 //     `drop` or `branch` without a stash reference, and no `clear`: the stash stack is shared across
 //     worktrees and sessions, so only a tagged entry applied by hash is safe
@@ -33,6 +35,7 @@ const WRITES_COMMITS = new Set(["commit", "merge", "rebase", "cherry-pick", "rev
 const STASH_ACTIONS = new Set(["push", "save", "pop", "apply", "list", "show", "drop", "clear", "branch", "create", "store"]);
 const STASH_NEEDS_REF = new Set(["pop", "apply", "drop", "branch"]);
 const STASH_NEEDS_MESSAGE = new Set(["push", "store"]);
+const STASH_REWRITES_TREE = new Set(["push", "save", "pop", "apply"]);
 const STASH_SAFE_FORM =
   "Use git stash push -u -m <tag>, then git stash apply <sha> (git stash list --format='%H %s' shows the hashes), or make a WIP commit on the branch.";
 const GH_VALUE_FLAGS = new Set(["-R", "--repo", "-b", "--branch"]);
@@ -161,11 +164,25 @@ export function worktreeRecipe(trunk) {
   return `git worktree add ../<repo>-wt-<name> --no-track -b <type>/<name> origin/${trunk}`;
 }
 
+const servedPreamble = (toplevel) => `${toplevel} serves a running dev server (it is listed in ~/.claude/git-guard.json); `;
+
 function switchReason(toplevel, trunk) {
   return (
-    `${toplevel} serves a running dev server (it is listed in ~/.claude/git-guard.json); ` +
+    servedPreamble(toplevel) +
     "switching its branch hot-reloads other code under whoever is using the app. " +
     `Use a worktree instead: ${worktreeRecipe(trunk)}, then copy the env files and run npm ci there (~/.claude/CLAUDE.md, Workflow).`
+  );
+}
+
+// Stashing is the parking move before a switch, and it rewrites the served working tree the same way.
+// `stash create` + `stash store` record the change without touching the tree.
+function stashInServedReason(toplevel, trunk) {
+  return (
+    servedPreamble(toplevel) +
+    "a stash push, save, pop or apply rewrites its working tree under whoever is using the app. " +
+    "Record the change without a second rewrite: git stash create, then git stash store -m <tag> <sha> " +
+    `(tracked changes only; copy untracked files by hand), and git stash apply <sha> in a worktree (${worktreeRecipe(trunk)}). ` +
+    "The served tree keeps its uncommitted edits; tell the user, since cleaning it is their call."
   );
 }
 
@@ -183,23 +200,31 @@ function switchTarget(dir, sub, rest) {
   return looksLikeBranch ? arg : null;
 }
 
-// A stash message is a value, not a positional: `git stash -u -m pop` is a push whose message is "pop".
-function stashPositionals(rest) {
-  const out = [];
+// A stash message is a value, not a positional or a flag: `git stash -u -m pop` is a push whose message
+// is "pop", and `-m -h` is not a request for help.
+function stashArgs(rest) {
+  const args = [];
+  const flags = [];
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (a === "--message" || /^-[a-zA-Z]*m$/.test(a)) i++;
-    else if (!a.startsWith("-")) out.push(a);
+    if (a === "--message" || /^-[a-zA-Z]*m$/.test(a)) {
+      flags.push(a);
+      i++;
+    } else if (a.startsWith("-")) flags.push(a);
+    else args.push(a);
   }
-  return out;
+  return { args, flags };
 }
+
+const stashPositionals = (rest) => stashArgs(rest).args;
+
+const stashAction = (args) => (STASH_ACTIONS.has(args[0]) ? args[0] : "push");
 
 // The stash stack is shared by every worktree and session of the repo: an entry without a message is
 // anonymous, and an action without a stash reference takes whichever entry is on top.
-function stashReason(rest) {
-  if (rest.includes("--help") || rest.includes("-h")) return null;
-  const [first, ...more] = stashPositionals(rest);
-  const action = STASH_ACTIONS.has(first) ? first : "push";
+function stashReason(rest, args) {
+  const action = stashAction(args);
+  const more = args.slice(1);
   const shared = "a stash stack shared across worktrees and sessions";
   if (action === "clear") return `git stash clear deletes every entry on ${shared}. ${STASH_SAFE_FORM}`;
   if (STASH_NEEDS_REF.has(action)) {
@@ -232,9 +257,22 @@ function locate(dir, state) {
   }
 }
 
+// The shared-stack rule is syntactic and holds even where the repo cannot be located. The served rule
+// needs the repo and comes first where it applies, so a bare `git stash` in a served checkout is sent to
+// the recording recipe rather than to a tagged push the next check would refuse.
+function stashReasons(rest, dir, state) {
+  const { args, flags } = stashArgs(rest);
+  if (flags.includes("--help") || flags.includes("-h")) return null;
+  if (STASH_REWRITES_TREE.has(stashAction(args))) {
+    const where = locate(dir, state);
+    if (where && state.protectedCheckouts.includes(where.key)) return stashInServedReason(where.toplevel, trunkOf(dir, where.branch));
+  }
+  return stashReason(rest, args);
+}
+
 function checkGit(parsedGit, dir, state) {
   if (parsedGit.sub === "stash") {
-    const reason = stashReason(parsedGit.rest);
+    const reason = stashReasons(parsedGit.rest, dir, state);
     if (reason) return reason;
   }
   const { sub, rest, configs } = asSwitch(parsedGit);
@@ -244,6 +282,7 @@ function checkGit(parsedGit, dir, state) {
   const { toplevel, key, branch } = where;
   const trunk = trunkOf(dir, branch);
   const onTrunk = branch === trunk;
+  const served = state.protectedCheckouts.includes(key);
 
   if (WRITES_COMMITS.has(sub) && onTrunk) {
     return `You are on ${branch}. Writing commits to trunk locally (${sub}) bypasses the PR gate: git switch -c <type>/<name> first, then open a PR.`;
@@ -252,7 +291,7 @@ function checkGit(parsedGit, dir, state) {
   if (sub === "switch" || sub === "checkout") {
     const target = switchTarget(dir, sub, rest);
     if (!target) return null;
-    if (state.protectedCheckouts.includes(key)) return switchReason(toplevel, trunk);
+    if (served) return switchReason(toplevel, trunk);
     if (target !== "-") state.branches.set(key, target);
   }
   return null;
