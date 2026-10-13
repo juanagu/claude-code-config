@@ -34,7 +34,7 @@ src/
 
 | From | May import |
 | --- | --- |
-| `app/` | `features/*/screens`, `features/*/lib/` (hrefs and param schemas), `features/*/store` (the session store, for the layout guards), `shared/`, `i18n/`, `flags/` |
+| `app/` | `features/*/screens`, `features/*/lib/routes.ts`, `features/*/lib/params.ts` (the param schemas its route files validate with), `features/auth/store` (the session store the layout guards read), `shared/`, `i18n/`, `flags/` |
 | `features/<f>/` | its own folder, `shared/`, `i18n/`, `flags/`, and another feature **only** through the exports its `feature_readme.md` lists |
 | `shared/`, `i18n/`, `flags/` | `shared/`, never a feature |
 
@@ -52,7 +52,7 @@ Enforced by `eslint-plugin-boundaries` (or `dependency-cruiser`) once the repo o
 - **Server state is TanStack Query.** Each feature keeps a query-key factory in `lib/query-keys.ts` and its hooks in `hooks/`; mutations invalidate by key or update the cache optimistically and roll back in `onError`. Persist the cache (`@tanstack/query-async-storage-persister`) only for data the product must show offline.
 - **Client state is Zustand**, one small store per feature under `store/` when state outlives a screen; `useState`/`useReducer` when it does not. No Redux unless the project already has it; no global "app store".
 - **Forms are React Hook Form + Zod**, composing `shared/ui`'s `Field` and `FormErrorMessage`. A form stays mounted while submitting (fields disabled, progress inside the button) so a failure keeps what was typed; failures the user fixes by retyping render inline, the unexpected ones as a toast through `Screen`.
-- **Session** is a small store hydrated from `expo-secure-store` at launch, read by the `(app)` and `(auth)` layouts for their redirects, and the only place the token lives in memory.
+- **Session** is `features/auth/store`, a small store hydrated from `expo-secure-store` at launch, read by the `(app)` and `(auth)` layouts for their redirects, and the only place the token lives in memory.
 - Errors from `lib/` are typed (`FeedError` as a discriminated union) and mapped exhaustively in the hook; a component never inspects an `AxiosError` or a `Response`.
 
 ## 3. Navigation and chrome
@@ -114,7 +114,7 @@ Before reporting work done: lint, typecheck, Jest, the Maestro flows the change 
 ## 10. Adding a feature
 
 1. `src/features/<name>/` with `screens/`, `components/`, `hooks/`, `lib/` as needed, and `feature_readme.md`.
-2. `lib/<name>-api.ts`: narrow functions over `shared/lib`'s client, each parsing its response with a Zod schema; types exported beside them; `lib/query-keys.ts`; `lib/routes.ts` for every href the feature owns.
+2. `lib/<name>-api.ts`: narrow functions over `shared/lib`'s client, each parsing its response with a Zod schema; types exported beside them; `lib/query-keys.ts`; `lib/routes.ts` for every href the feature owns; `lib/params.ts` for the schemas its route files validate params with.
 3. `hooks/use-<name>.ts`: TanStack Query hooks mapping `lib/` errors to the feature's typed error.
 4. `screens/<name>-screen.tsx`: composes `Screen` and `shared/ui` primitives, reads copy through `useT()`; keys added to every dictionary.
 5. `app/(app)/<name>/index.tsx`: validates params, renders the screen; a `_layout.tsx` if the feature is a nested stack. If toggled, add the key to `src/flags/` and gate the route file.

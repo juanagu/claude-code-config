@@ -94,7 +94,7 @@ Stack-specific conventions (Next.js, Fastify, Docker…) live in the agent that 
 | `ios-engineer` | sonnet | Native iOS in Swift 6 and SwiftUI: views, `@Observable` view models, Swift packages; the architecture comes from `ios-architecture`. |
 | `react-native-engineer` | sonnet | React Native on Expo: Expo Router, TanStack Query, Expo Modules, EAS; the architecture comes from `react-native-architecture`. |
 | `backend-engineer` | sonnet | Fastify BFFs/APIs, MongoDB repositories, BullMQ workers; the stack architecture comes from `fastify-architecture`. |
-| `qa-engineer` | sonnet | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px, every shipped locale, a smoke pass on the real stack for cross-service changes. |
+| `qa-engineer` | sonnet | Test strategy and verification: Playwright (web) or `integration_test` (Flutter) at desktop and ~390px; managed-device flows (Android), XCUITest (iOS) or Maestro (React Native) at a phone and a tablet; every shipped locale, a smoke pass on the real stack for cross-service changes. |
 | `security-engineer` | opus | Security review and threat modelling across the stack. |
 | `technical-writer` | sonnet | READMEs, API docs, ADRs, changelogs. |
 | `devops-engineer` | sonnet | Docker/Compose, CI/CD, Cloudflare configuration. |

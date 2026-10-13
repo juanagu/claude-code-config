@@ -120,7 +120,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 ## 9. Copy, toggles and checks
 
 - All copy in `res/values[-<locale>]/strings.xml`, read through `stringResource`; plurals through `pluralStringResource`. Android Lint's `HardcodedText` and `MissingTranslation` are errors in `lint.xml`, so a missing locale fails the build. Formatting that depends on locale (dates, relative time) goes through a formatter that takes the `Locale`, never a hard-coded pattern.
-- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` backed by remote config or DataStore. The Route composable reads its flag once, as a field of its `UiState` that the ViewModel takes from the `FeatureFlagsRepository`, and hands the boolean to `FeatureGate`, a pure composable in `core:designsystem` that depends on nothing (so the module table in §1 holds); never deep in a use case. A read that fails keeps the feature off.
+- Toggle keys and defaults in one `FeatureFlags` object; a `FeatureFlagsRepository` port in `core:data` backed by remote config or DataStore. The ViewModel exposes the flag as its own `enabled: StateFlow<Boolean>` (a separate property, never a case of the sealed `UiState`), taken from the `FeatureFlagsRepository`'s cached value. The Route collects `enabled` first and hands the boolean to `FeatureGate`, a pure composable in `core:designsystem` that depends on nothing (so the module table in §1 holds), and collects `uiState` only inside the gate: with `WhileSubscribed` the data flow starts on first collection, so a feature that is off never loads. Never read a flag in a use case. A read that fails keeps the feature off.
 - Lint and format: `ktlint` (or `spotless` running it), `detekt` with the Compose rules (`io.nlopez.compose.rules`), Android Lint with `warningsAsErrors`. Size rules come from detekt's `LongMethod` (40), `LargeClass` and `TooManyFunctions`, with today's offenders in a baseline that may only shrink.
 
 ## 10. Tests
@@ -149,7 +149,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 3. The repository interface in `core:data` if the data is new (returning `Flow`/`suspend`), its implementation, a fake in `core:testing`, and the `demo` binding.
 4. `<Name>ViewModel.kt`: `@HiltViewModel`, state through `stateIn`, one function per event, exhaustive `when` over errors.
 5. `<Name>Screen.kt`: `<Name>Route` (stateful) and `<Name>Screen` (stateless) inside `ScreenScaffold`, composing `core:designsystem`; copy in every `strings.xml`; a `@Preview` per state.
-6. `navigation/<Name>Navigation.kt`: the `NavKey` and the entry-provider extension; wire it in `app`. If toggled, add the key to `FeatureFlags` and gate the entry composable.
+6. `navigation/<Name>Navigation.kt`: the `NavKey` and the entry-provider extension; wire it in `app`. If toggled, add the key to `FeatureFlags`, expose `enabled` on the ViewModel and gate the Route as §9 says.
 7. Tests from §10: ViewModel, screenshot per state, the flow if it is critical. Add `feature_readme.md`.
 
 ## 12. What goes wrong, and the correct form
@@ -168,7 +168,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 | `SharedPreferences` for a token | A Keystore-backed `SecureStore` port; DataStore for ordinary settings |
 | A string literal in a composable | `stringResource(R.string.key)`; `HardcodedText` is an error |
 | `Thread.sleep` in a UI test | `waitUntil` on a semantics node; a `testTag` on the thing waited for |
-| A flag read in the ViewModel and again in the screen | The Route reads it once from the state and hands the boolean to `FeatureGate` |
+| A flag read in the ViewModel and again in the screen | The ViewModel's `enabled` flow, collected once by the Route and handed to `FeatureGate` |
 | Screenshot references updated without review | The image diff is part of the PR review; an unintended change is a bug |
 
 ## Checklist for a review brief
@@ -182,7 +182,7 @@ Copy into every `/code-review` brief for Android work:
 5. Navigation keys are `@Serializable` ids, exposed through the feature's entry extension; screens get lambdas, never the back stack.
 6. No raw hex, dp or sp outside `core:designsystem`; new UI composes its primitives; `ScreenScaffold` owns insets and back-blocking; 48dp targets and content descriptions present.
 7. Every `strings.xml` updated; `HardcodedText` and `MissingTranslation` are errors and the lint is green.
-8. Toggles checked once at the entry composable through `FeatureGate`.
+8. Toggles read once, as the ViewModel's `enabled` flow collected by the Route before `uiState`, and applied through `FeatureGate`.
 9. Tests follow §10: ViewModel states through Turbine with fakes; screenshot tests per state at phone and tablet, light and dark, every locale, references reviewed; a changed critical flow has its instrumented test run on the managed device, with screenshots linked.
 10. Files ~300 lines, functions ~40 (detekt `LongMethod`), composables ~200, counting no blanks or comments; `ktlint`, `detekt` and Android Lint green with no new baseline entries.
 11. File names PascalCase after the one top-level declaration; test files `<Name>Test.kt`.

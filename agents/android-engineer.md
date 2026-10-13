@@ -27,7 +27,7 @@ Apply `~/.claude/CLAUDE.md`'s **Structure rules** to every file you touch; the s
 - Repositories are the single source of truth, expose `Flow`/`suspend`, take injected dispatchers; DTO, entity and model are separate types; tokens in a Keystore-backed store, never DataStore or `SharedPreferences`.
 - Navigation keys are `@Serializable` ids exposed through the feature's entry extension; screens receive lambdas, never the back stack.
 - No raw hex, dp or sp outside `core:designsystem`; new UI composes its primitives inside `ScreenScaffold`; every `strings.xml` updated, with `HardcodedText` and `MissingTranslation` as errors.
-- Toggles checked once at the entry composable through `FeatureGate`.
+- Toggles read once, as the ViewModel's `enabled` flow collected by the Route before `uiState`, and applied through `FeatureGate`.
 - A composable over ~200 lines, or one that both decides and renders, splits into a state holder and presentational pieces.
 
 ## Definition of done
