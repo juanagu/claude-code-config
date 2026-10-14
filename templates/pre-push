@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pre-push hook: the fast tier's cheap checks, so a red run is caught before CI.
+# Copy to .githooks/pre-push (executable) next to scripts/install-git-hooks.mjs.
+# Skipped in CI and for deletion-only pushes. No Playwright or build here.
+# Where the full unit suite is slow, switch `test` to: npx vitest run --changed origin/main
+
+[ -n "$CI" ] && exit 0
+
+# A push that only deletes refs sends an all-zero local sha.
+zero=0000000000000000000000000000000000000000
+only_deletes=1
+while read -r _ local_sha _ _; do
+  [ "$local_sha" != "$zero" ] && only_deletes=0
+done
+[ "$only_deletes" = 1 ] && exit 0
+
+has_script() {
+  node -e 'process.exit(require("./package.json").scripts?.[process.argv[1]] ? 0 : 1)' "$1"
+}
+
+run() {
+  echo "pre-push: npm run $1"
+  npm run --silent "$1" || { echo "pre-push: $1 failed; fix it or CI will fail too." >&2; exit 1; }
+}
+
+for script in lint typecheck test; do
+  has_script "$script" && run "$script"
+done
+has_script contracts:check && run contracts:check
+exit 0

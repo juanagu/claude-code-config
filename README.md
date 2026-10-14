@@ -155,7 +155,7 @@ Two skills that used to be vendored here are gone on purpose: `pdf`, because its
 
 ### `templates/`: starting points for a new repo
 
-`ci.yml` is the two-tier GitHub Actions workflow the Workflow section of `CLAUDE.md` describes. Copy it into `.github/workflows/`; its header says what a service repo deletes. Nothing links it into `~/.claude`.
+`ci.yml` is the two-tier GitHub Actions workflow the Workflow section of `CLAUDE.md` describes. Copy it into `.github/workflows/`; its header says what a service repo deletes. `pre-push` and `install-git-hooks.mjs` are the pre-push hook the same section describes: copy them to `.githooks/pre-push` and `scripts/install-git-hooks.mjs`, and add `"prepare": "node scripts/install-git-hooks.mjs"` to `package.json`. Nothing links these into `~/.claude`.
 
 ### `settings.template.json`
 
