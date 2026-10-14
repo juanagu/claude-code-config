@@ -3,6 +3,10 @@
 # origin is a local bare repo, so a push is real but goes nowhere.
 set -euo pipefail
 target="$1"; mode="$2"
+case "$mode" in
+  happy|on-main-dirty|failing-tests) ;;
+  *) echo "setup.sh: unknown mode '$mode' (happy, on-main-dirty, failing-tests)" >&2; exit 1 ;;
+esac
 # A fresh target only: re-running into an old sandbox would keep its refs and pushes.
 if [ -e "$target" ]; then echo "setup.sh: $target already exists; pass a new directory" >&2; exit 1; fi
 mkdir -p "$target"; cd "$target"
@@ -76,5 +80,8 @@ case "$mode" in
     ;;
 esac
 
+# What gh would answer for the calls the skill and its agents make; any other gh call is listed, not run.
 mkdir -p ../gh-fixtures
 printf '{"defaultBranchRef":{"name":"main"},"nameWithOwner":"acme/notifications-svc"}\n' > ../gh-fixtures/repo-view.json
+printf '[]\n' > ../gh-fixtures/pr-list-head-feat-unread-count.json
+printf '{"number":42,"state":"OPEN","title":"Show how many notifications are unread","body":"Add a helper that counts unread notifications."}\n' > ../gh-fixtures/issue-view-42.json

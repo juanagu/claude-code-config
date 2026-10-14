@@ -4,11 +4,11 @@ Each skill in `skills/` carries `evals/evals.json` in skill-creator's schema (pr
 
 ## Before each run
 
-1. Make a fresh work directory per run, outside any real checkout.
+1. Pick a fresh work path per run, outside any real checkout.
 2. Build its inputs as the eval's `sandbox` says:
-   - architecture skills: copy `evals/files/*` into `<work>/files/` (the prompts say `files/review.diff`);
-   - `open-pr`, `resolve-pr-comments`: `evals/files/setup.sh <work> [mode]`, which refuses a directory that already exists;
-   - `retro`: copy the eval's files into `<work>/` and `git archive origin/main | tar -x -C <work>/config-repo`.
+   - architecture skills: create `<work>` and copy `evals/files/*` into `<work>/files/` (the prompts say `files/review.diff`);
+   - `open-pr`, `resolve-pr-comments`: run the `setup` command with a `<work>` path that does not exist yet; `setup.sh` creates it, refuses an existing one, and is never shown to the agent, since it spells out the planted answers;
+   - `retro`: copy the eval's files into `<work>/`, then `mkdir -p <work>/config-repo && git archive origin/main ':(exclude)skills/*/evals' | tar -x -C <work>/config-repo`. The exclude keeps every eval's expectations, this one's included, out of the agent's reach.
 3. Put the sandbox's rules in the run's prompt: the work directory, that `gh` and `/code-review` are not available and stand in through `gh-fixtures/` or `open-issues.json`, and that the final message lists every command it would have run. Nothing else stops a run from calling the real `gh`.
 
 ## Comparing versions
