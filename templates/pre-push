@@ -1,0 +1,66 @@
+#!/bin/sh
+# Pre-push hook: the fast tier's cheap checks, so a red run is caught before CI.
+# Copy to .githooks/pre-push; scripts/install-git-hooks.mjs installs a shim, in the repo's shared hooks dir, that runs it.
+# Skipped in CI and for deletion-only pushes. No Playwright or build here.
+# Where the full unit suite is slow, switch `test` to: npx vitest run --changed origin/main
+
+# Sibling clone of the service whose contract this repo vendors; leave empty if none.
+PRODUCER_DIR=""
+
+[ -n "$CI" ] && exit 0
+
+only_deletes=1
+pushed_shas=""
+while read -r _ local_sha _ _; do
+  case $local_sha in *[!0]*) only_deletes=0; pushed_shas="$pushed_shas $local_sha" ;; esac
+done
+[ "$only_deletes" = 1 ] && exit 0
+
+# Git exports GIT_DIR to hooks, so `git -C <other repo>` in a check would read this repo instead.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+# Docs-only skip: mirror the paths filter in .github/workflows/ci.yml, e.g.
+# Compute the range per pushed ref (remote_sha..local_sha; a new branch has an all-zero
+# remote sha, so use origin/main...local_sha), then:
+# git diff --name-only <range> | grep -qvE '^(docs/|.*\.md$)' || exit 0
+
+head_sha="$(git rev-parse HEAD)"
+for sha in $pushed_shas; do
+  if [ "$(git rev-parse "$sha^{commit}")" != "$head_sha" ]; then
+    echo "pre-push: warning: pushing a ref other than the checked-out HEAD; checks ran on the checked-out tree, not the pushed ref." >&2
+    break
+  fi
+done
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "pre-push: warning: uncommitted changes; checks run on the working tree, not the commits being pushed." >&2
+fi
+
+scripts="$(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("package.json","utf8")).scripts ?? {}).join(" "))')" \
+  || { echo "pre-push: cannot read package.json" >&2; exit 1; }
+
+has_script() {
+  case " $scripts " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+run() {
+  echo "pre-push: npm run $1"
+  npm run --silent "$1" || { echo "pre-push: $1 failed; fix it or CI will fail too." >&2; exit 1; }
+}
+
+for script in lint typecheck test; do
+  has_script "$script" && run "$script"
+done
+
+if has_script contracts:check; then
+  if [ -n "$PRODUCER_DIR" ] && [ -d "$PRODUCER_DIR" ]; then
+    git -C "$PRODUCER_DIR" fetch -q origin       || echo "pre-push: could not fetch $PRODUCER_DIR; contracts:check ran on stale refs" >&2
+    run contracts:check
+  elif [ -z "$PRODUCER_DIR" ]; then
+    echo "pre-push: PRODUCER_DIR not set in .githooks/pre-push; skipping contracts:check"
+  else
+    echo "pre-push: producer clone $PRODUCER_DIR not found; skipping contracts:check"
+  fi
+fi
+exit 0
