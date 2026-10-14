@@ -35,7 +35,7 @@ function install() {
 
   const hooksPath = hooksPathSetting();
   if (hooksPath) return warn(`core.hooksPath is set to ${hooksPath}; pre-push hook not installed`);
-  if (readFileSync(committed, 'utf8').includes('')) {
+  if (readFileSync(committed, 'utf8').includes('\r')) {
     warn('.githooks/pre-push has CRLF line endings and will fail under sh; add ".githooks/* text eol=lf" to .gitattributes and re-checkout it');
   }
 
