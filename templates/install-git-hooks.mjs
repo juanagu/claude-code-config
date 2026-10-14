@@ -1,8 +1,6 @@
-// Installs a shim in the repo's shared hooks directory (common to all worktrees)
-// that runs the committed .githooks/pre-push of whichever worktree is pushing.
-// Wire it up as  "prepare": "node scripts/install-git-hooks.mjs"  so `npm ci`
-// installs it. Never sets core.hooksPath: it is shared by every worktree and
-// would disable other hooks in .git/hooks. Never fails `npm ci`: problems warn.
+// Installs a shim in the repo's shared hooks dir (common to all worktrees) that runs the current
+// worktree's committed .githooks/pre-push. Never fails an install (Docker build without .git, CI)
+// and never touches core.hooksPath, which every worktree shares and which would disable other hooks.
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -16,40 +14,48 @@ hook="$(git rev-parse --show-toplevel)/.githooks/pre-push"
 exec sh "$hook" "$@"
 `;
 
-const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-const warn = (message) => console.warn(`install-git-hooks: ${message}`);
-
-function hooksPathSetting() {
+const git = (...args) => execFileSync('git', args, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+const gitOptional = (...args) => {
   try {
-    return git('config', '--get', 'core.hooksPath');
+    return git(...args);
   } catch {
     return '';
   }
-}
+};
+const warn = (message) => process.stderr.write(`install-git-hooks: ${message}\n`);
 
-function install() {
+function installHooks() {
   if (process.env.CI) return;
-  if (git('rev-parse', '--is-inside-work-tree') !== 'true') return;
-  const committed = resolve(git('rev-parse', '--show-toplevel'), '.githooks/pre-push');
-  if (!existsSync(committed)) return;
-
-  const hooksPath = hooksPathSetting();
+  const hook = resolve(git('rev-parse', '--show-toplevel'), '.githooks/pre-push');
+  if (!existsSync(hook)) return;
+  const hooksPath = gitOptional('config', '--get', 'core.hooksPath');
   if (hooksPath) return warn(`core.hooksPath is set to ${hooksPath}; pre-push hook not installed`);
-  if (readFileSync(committed, 'utf8').includes('\r')) {
-    return warn('.githooks/pre-push has CRLF line endings and would fail under sh, so no hook was installed; add ".githooks/* text eol=lf" to .gitattributes and re-checkout it');
-  }
-
-  const target = resolve(git('rev-parse', '--git-common-dir'), 'hooks/pre-push');
+  if (readFileSync(hook, 'utf8').includes('\r')) return warn('.githooks/pre-push has CRLF line endings, so no hook was installed; add ".githooks/* text eol=lf" to .gitattributes, then run `git add --renormalize .` and re-checkout the file');
+  const target = resolve(git('rev-parse', '--git-common-dir'), 'hooks', 'pre-push');
   if (existsSync(target) && !readFileSync(target, 'utf8').includes(MARKER)) {
-    return warn(`${target} exists and is not managed here; left alone`);
+    return warn(`${target} already exists and is not ours; left alone.`);
   }
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, SHIM);
-  chmodSync(target, 0o755);
+  try {
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, SHIM);
+    chmodSync(target, 0o755);
+  } catch (error) {
+    warn(`could not write ${target}: ${error.message}`);
+  }
 }
 
-try {
-  install();
-} catch (error) {
-  warn(`pre-push hook not installed: ${error.message}`);
+function insideWorkTree() {
+  try {
+    return git('rev-parse', '--is-inside-work-tree') === 'true';
+  } catch {
+    return false; // git absent or not a repo (Docker build): nothing to install
+  }
+}
+
+if (insideWorkTree()) {
+  try {
+    installHooks();
+  } catch (error) {
+    warn(`pre-push hook not installed: ${error.message}`);
+  }
 }

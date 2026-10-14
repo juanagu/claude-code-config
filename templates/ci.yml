@@ -19,6 +19,7 @@ on:
     paths:
       - '**'
       - '!docs/**'
+      - 'docs/contracts/**'
       - '!**/feature_readme.md'
       - '!README.md'
       - '!AGENTS.md'
@@ -27,6 +28,7 @@ on:
     paths:
       - '**'
       - '!docs/**'
+      - 'docs/contracts/**'
       - '!**/feature_readme.md'
       - '!README.md'
       - '!AGENTS.md'
