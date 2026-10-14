@@ -14,6 +14,10 @@ Screenshot tests are the two-viewport rule here.
 - Reference images are committed; a changed screen updates its references in the same PR and the image diff is reviewed. An unintended change is a bug.
 - These are the screenshots the UI rule asks for. The fallback is a run on an emulator with the `demo` flavor captured by `adb exec-out screencap`, named `<screen>-<device>-<locale>`.
 
+## Compose UI tests
+
+A screen's behaviour (taps, callbacks, which state renders) is tested in the feature module's `src/androidTest/` with fakes, through `createAndroidComposeRule<HiltTestActivity>()`, finding nodes by `testTag`. It is not an end-to-end flow: no navigation beyond the screen and no backend.
+
 ## End-to-end on a managed device
 
 - A small set of instrumented flows: a `smoke` test suite (launch, sign-in, home) and one class per critical flow, on a Gradle Managed Device (`pixel8Api35`) against the `demo` flavor.

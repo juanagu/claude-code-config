@@ -43,6 +43,7 @@ Folders appear when they have content: no empty `domain/`, no pass-through `serv
 ## 3. BFF
 
 - Shapes, aggregates and translates auth/session. Domain logic and source-of-truth data stay in the services it calls; a BFF holding source-of-truth data has become a microservice: flag it.
+- One BFF per client surface, its feature folders mirroring the client's features; no database of its own beyond a short-TTL cache.
 - A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly.
 - Each feature's `ports/` declares only the upstream calls it makes; `adapters/` implements them over the shared transport.
 - Upstream failures are thrown as `UpstreamHttpError(status, body)`, never returned as `{ ok, status }`, because the central handler relays them through the envelope's allow-list of statuses and fields, so no adapter decides what a client sees.

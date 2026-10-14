@@ -34,7 +34,7 @@ cat > package.json <<'EOF'
 }
 EOF
 mkdir -p scripts src test tests/e2e
-# Stands in for Playwright: appends the specs each run asked for to ../e2e-runs.log, outside the repo,
+# Stands in for Playwright: appends the specs each run asked for to <work>/e2e-runs.log, outside the repo,
 # with whether the branch was already on origin, so a grader can tell a run before the push from one after.
 cat > scripts/e2e.mjs <<'EOF'
 import { appendFileSync } from "node:fs";
