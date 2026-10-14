@@ -79,7 +79,7 @@ class TweetFeedFeature {
 ## 4. Results, failures and state
 
 - One-shot repository and use-case calls return `Future<Either<XFailure, T>>`, with `Unit` when nothing comes back.
-- A repository that watches data returns `Stream<T>` and carries failures as stream errors, not `Either`: the adapter maps every vendor error to the feature's sealed `XFailure` and adds that as the error, so no vendor exception reaches the stream; the cubit handles it in `onError` and emits the failure state.
+- A repository that watches data returns `Stream<T>` and carries failures as stream errors, not `Either`: the integration adapter turns vendor errors into the port's own exception (§1), and the feature's repository maps that to its sealed `XFailure` and adds it as the error, so no vendor or port exception reaches the cubit; the cubit handles it in `onError` and emits the failure state.
 - Expected failures (wrong password, email taken) are mapped without logging; everything else is logged through the `Logger` port and becomes the feature's unexpected failure.
 - States and failures are `sealed class` hierarchies matched with `switch`; no generated unions. A state that carries data carries it as a field (`TweetFeedFound(items)`).
 - A cubit owns its subscriptions: `close()` cancels; a restart cancels synchronously before listening again; `emit` is guarded by `isClosed` in async callbacks. A cubit takes a clock, a flag source or a formatter through a port, never from the widget tree.

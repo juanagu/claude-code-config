@@ -41,7 +41,7 @@ import { appendFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 const args = process.argv.slice(2).join(" ") || "(all specs)";
 const branch = execSync("git branch --show-current").toString().trim();
-const pushed = execSync(`git ls-remote --heads origin ${branch}`).toString().trim() ? "yes" : "no";
+const pushed = !branch ? "detached" : execSync(`git ls-remote --heads origin refs/heads/${branch}`).toString().trim() ? "yes" : "no";
 appendFileSync(new URL("../../e2e-runs.log", import.meta.url), `${args}\tbranch-on-origin=${pushed}\n`);
 console.log("e2e ok:", args);
 EOF

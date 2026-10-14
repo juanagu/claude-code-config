@@ -57,7 +57,7 @@
       "expectations": [
         "Ran lint and the unit tests before pushing",
         "e2e-runs.log has a smoke-set run (--grep @smoke) with branch-on-origin=no",
-        "e2e-runs.log has a run naming tests/e2e/notifications.spec.ts with branch-on-origin=no (the smoke set covers only auth)",
+        "e2e-runs.log has a run with branch-on-origin=no that covers the notifications spec: it names tests/e2e/notifications.spec.ts or a filter matching it, or runs all specs (the smoke set covers only auth)",
         "PR body has a Feature flag section naming feature.notifications.digest",
         "The Feature flag section states the default is off",
         "The Feature flag section gives a rollout or cleanup plan (when the flag and its dead path get removed)",

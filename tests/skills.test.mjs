@@ -22,9 +22,11 @@ const agentFiles = agentNames.map((name) => `agents/${name}.md`);
 const architectureSkills = skillNames.filter((name) => name.endsWith("-architecture"));
 const referencesOf = (name) => {
   const dir = join(repoDir, "skills", name, "references");
-  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")) : [];
+  return existsSync(dir) ? readdirSync(dir) : [];
 };
-const referenceFiles = skillNames.flatMap((name) => referencesOf(name).map((f) => `skills/${name}/references/${f}`));
+const referenceFiles = skillNames.flatMap((name) =>
+  referencesOf(name).filter((f) => f.endsWith(".md")).map((f) => `skills/${name}/references/${f}`),
+);
 const proseFiles = ["CLAUDE.md", "README.md", ...agentFiles, ...skillNames.map(skillFile), ...referenceFiles];
 
 // Fenced blocks are kept: in the skills they are layout trees whose comments carry pointers too.
@@ -91,7 +93,7 @@ for (const file of proseFiles) {
 // and a named one that is missing sends the agent looking for nothing.
 for (const name of skillNames) {
   test(`${name}: SKILL.md names every references/ file, and each one it names exists`, () => {
-    const named = new Set([...read(skillFile(name)).matchAll(/references\/([\w.-]+\.md)/g)].map((m) => m[1]));
+    const named = new Set([...read(skillFile(name)).matchAll(/references\/([\w-]+\.\w+)/g)].map((m) => m[1]));
     const present = new Set(referencesOf(name));
     assert.deepEqual([...present].filter((f) => !named.has(f)), [], "never named in SKILL.md");
     assert.deepEqual([...named].filter((f) => !present.has(f)), [], "named but missing");

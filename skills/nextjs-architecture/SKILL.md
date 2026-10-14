@@ -27,8 +27,8 @@ src/
 
 - File names are kebab-case (`login-form.tsx` exports `LoginForm`, `use-session-refresh.ts` exports `useSessionRefresh`, and Astro components alike: `site-header.astro`); Next's reserved files (`page.tsx`, `layout.tsx`, `route.ts`) and `feature_readme.md` keep their names. ESLint enforces it with `unicorn/filename-case` (`kebabCase`).
 - App Router, TypeScript strict. Server Components by default; `"use client"` only where interactivity or state requires it.
-- **Components never fetch**, so each feature touches the backend contract in one place and components test without a network. Server reads live in the feature's `lib/` as narrow functions marked `server-only`, which makes an accidental import into a client bundle (with its cookies or secrets) a build error; mutations go in server actions or the feature's `lib/` client; pages and components call those.
-- `shared/lib` holds only the transport and the error envelope. No interface/adapter pair per fetch: on the frontend the narrow module is the port.
+- **Components never fetch**, so each feature touches the backend contract in one place and components test without a network. Server reads live in the feature's `lib/` as narrow functions marked `server-only`, which makes an accidental import into a client bundle (with its cookies or secrets) a build error; mutations go in the feature's own server actions or its `lib/` client; pages and components call those.
+- A feature owns its calls to the backend as narrow functions in its own `lib/`; `shared/lib` holds only the transport and the error envelope. No interface/adapter pair per fetch: on the frontend the feature's narrow `lib/` module is the port.
 - A feature imports another only through the exports its `feature_readme.md` lists as its exposed interface (e.g. `auth/lib/routes.ts` for every auth href). `shared/` never imports a feature.
 - Validate all external input (forms, search params, API responses) at the boundary.
 - Business logic lives outside components (hooks, `lib/`); a component over ~200 lines, or one that both decides and renders, splits into a hook and presentational pieces.
@@ -55,7 +55,7 @@ src/
 
 ## 5. Astro static and marketing sites
 
-Static output by default, `client:*` islands only where a component needs JS, and landing pages designed desktop-led (1280 first, then 390 as its own adaptation). Section 3 (design system) and section 6's test tiers apply as written; i18n takes the Astro form in the reference (one content dictionary per locale, path-based locales), because static output has no proxy to negotiate a cookie.
+Static output by default, `client:*` islands only where a component needs JS, and landing pages designed desktop-led (1280 first, then 390 as its own adaptation). §3 (design system) applies except that a landing page is designed desktop-led, as above, while its CSS is still written base-up; §6's test tiers apply as written; i18n takes the Astro form in the reference (one content dictionary per locale, path-based locales), because static output has no proxy to negotiate a cookie.
 
 Read `references/astro.md` before writing or reviewing code in an Astro project.
 

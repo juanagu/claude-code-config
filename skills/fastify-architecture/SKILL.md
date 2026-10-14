@@ -93,7 +93,7 @@ Before reporting work done: lint, typecheck, unit and fast integration tests, a 
 2. Every route has input and output schemas.
 3. Errors thrown as typed errors and mapped centrally; envelope shapes unchanged unless the issue says so.
 4. Each feature's `ports/` declares only what it uses; plugins receive the narrow port type.
-5. Only repositories touch the driver; queries never built from raw input; projections, not full documents.
+5. Only repositories touch the driver; documents schema-validated; queries never built from raw input; projections, not full documents; queried and sorted fields indexed.
 6. Jobs are idempotent with explicit retry policy and payload validation; the worker is its own process; failed jobs are visible.
 7. Auth endpoints keep account-existence leak prevention: same success shape for reset and resend, one generic `401` for bad tokens, no unknown-email vs wrong-password distinction at login.
 8. Tests: unit with mocked ports, repositories against a real MongoDB, routes via `inject`, jobs against real Redis.

@@ -1,6 +1,6 @@
 # Astro static and marketing sites
 
-Read with SKILL.md: its sections on the design system (tokens, primitives, mobile-first CSS) and tests apply to an Astro project too; its i18n section does not, because it negotiates a cookie in a proxy that static output doesn't have. This file holds what differs in Astro, i18n included.
+Read with SKILL.md: its sections on the design system (tokens, primitives, mobile-first CSS) and tests apply to an Astro project too; its i18n section does not, because it negotiates a cookie in a proxy that static output doesn't have. This file holds what differs in Astro, i18n included. Every shipped locale is still checked on screen, at 390 and 1280, before a change is done.
 
 - `output: 'static'` by default; needing per-request SSR is a hint the project belongs on Next.js, which is built for it.
 - Tailwind v4 with tokens in `@theme`; components organized by section (hero, features, footer), not by type.
