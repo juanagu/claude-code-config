@@ -8,9 +8,11 @@
 PRODUCER_DIR=""
 
 # Paths CI ignores (mirror the `paths` filter in .github/workflows/ci.yml); a push touching only
-# these skips the checks. Keep any file CI does run on (e.g. docs/contracts/*.json) out of it.
-# CI_IGNORED='^(README\.md$|docs/|(.*/)?feature_readme\.md$)'
+# these skips the checks. CI_RUNS_ANYWAY re-includes paths under them that CI does run on.
+# CI_IGNORED='^(README\.md|AGENTS\.md|CLAUDE\.md)$|(^|/)feature_readme\.md$|^docs/'
+# CI_RUNS_ANYWAY='^docs/contracts/'
 CI_IGNORED=''
+CI_RUNS_ANYWAY=''
 
 [ -n "$CI" ] && exit 0
 
@@ -61,16 +63,23 @@ if [ "$run_all" = 0 ]; then
     echo "pre-push: nothing new to check"
     exit 0
   fi
-  if [ -n "$CI_IGNORED" ] && [ -z "$(printf '%s\n' "$changed" | grep -v -E "$CI_IGNORED" | grep -v '^$')" ]; then
-    echo "pre-push: only files CI ignores changed; skipping checks"
-    exit 0
+  if [ -n "$CI_IGNORED" ]; then
+    runs_ci=$(printf '%s\n' "$changed" | grep -v -E "$CI_IGNORED" | grep -v '^$')
+    [ -n "$CI_RUNS_ANYWAY" ] && runs_ci="$runs_ci$(printf '%s\n' "$changed" | grep -E "$CI_RUNS_ANYWAY")"
+    if [ -z "$runs_ci" ]; then
+      echo "pre-push: only files CI ignores changed; skipping checks"
+      exit 0
+    fi
   fi
 fi
 
 # git exports these to hooks; they would point `git -C <producer>` at this repo.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 
-[ -d "$(git rev-parse --show-toplevel)/node_modules" ] || { echo "pre-push: run npm ci first" >&2; exit 1; }
+# Without installed dependencies the checks fail for the wrong reason; a dependency-free repo has none to install.
+if node -e 'const p=JSON.parse(require("fs").readFileSync("package.json","utf8"));process.exit(Object.keys({...p.dependencies,...p.devDependencies}).length?0:1)'; then
+  [ -d "$(git rev-parse --show-toplevel)/node_modules" ] || { echo "pre-push: run npm ci first" >&2; exit 1; }
+fi
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "pre-push: note: uncommitted or untracked files present; checks run on the working tree, not only the pushed commits" >&2

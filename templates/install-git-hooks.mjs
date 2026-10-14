@@ -26,7 +26,6 @@ const warn = (message) => process.stderr.write(`install-git-hooks: ${message}\n`
 
 function installHooks() {
   if (process.env.CI) return;
-  if (git('rev-parse', '--is-inside-work-tree') !== 'true') return;
   const hook = resolve(git('rev-parse', '--show-toplevel'), '.githooks/pre-push');
   if (!existsSync(hook)) return;
   const hooksPath = gitOptional('config', '--get', 'core.hooksPath');
@@ -38,15 +37,25 @@ function installHooks() {
   }
   try {
     mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, SHIM, { mode: 0o755 });
+    writeFileSync(target, SHIM);
     chmodSync(target, 0o755);
   } catch (error) {
     warn(`could not write ${target}: ${error.message}`);
   }
 }
 
-try {
-  installHooks();
-} catch {
-  // No git, or not a repo: nothing to install.
+function insideWorkTree() {
+  try {
+    return git('rev-parse', '--is-inside-work-tree') === 'true';
+  } catch {
+    return false; // git absent or not a repo (Docker build): nothing to install
+  }
+}
+
+if (insideWorkTree()) {
+  try {
+    installHooks();
+  } catch (error) {
+    warn(`pre-push hook not installed: ${error.message}`);
+  }
 }
