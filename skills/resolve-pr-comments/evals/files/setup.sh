@@ -58,6 +58,7 @@ git add -A; git commit -qm "feat(invites): accept an invite by token"; git push 
 mkdir -p ../gh-fixtures
 cat > ../gh-fixtures/pr-view.json <<'EOF'
 { "number": 17, "url": "https://github.com/acme/invites-api/pull/17", "headRefName": "feat/accept-invite",
+  "body": "Adds POST /invites/:token/accept. The web app (acme/web-app#31) already parses its 200 body as `{ workspaceId, role }`.",
   "comments": [ { "author": { "login": "maria-reviewer" }, "body": "LGTM once the error handling is sorted." } ] }
 EOF
 cat > ../gh-fixtures/pulls-comments.json <<'EOF'
@@ -82,7 +83,4 @@ cat > ../gh-fixtures/review-threads.json <<'EOF'
   { "id": "PRRT_a3", "isResolved": false, "comments": { "nodes": [ { "databaseId": 9003, "body": "Magic number: name the 7-day expiry.", "path": "src/accept-invite.js", "line": 7 } ] } },
   { "id": "PRRT_a4", "isResolved": true, "comments": { "nodes": [ { "databaseId": 9004, "body": "typo in the import order", "path": "src/accept-invite.js", "line": 1 } ] } }
 ] } } } } }
-EOF
-cat > ../gh-fixtures/README.md <<'EOF'
-The web app (a separate repo) already parses this endpoint's 200 body as `{ workspaceId, role }`.
 EOF

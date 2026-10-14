@@ -2,7 +2,7 @@ diff --git a/Packages/Features/Sources/Profile/ProfileViewModel.swift b/Packages
 new file mode 100644
 --- /dev/null
 +++ b/Packages/Features/Sources/Profile/ProfileViewModel.swift
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,20 @@
 +import SwiftUI
 +import Core
 +
@@ -27,7 +27,7 @@ diff --git a/Packages/Features/Sources/Profile/ProfileView.swift b/Packages/Feat
 new file mode 100644
 --- /dev/null
 +++ b/Packages/Features/Sources/Profile/ProfileView.swift
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,20 @@
 +import SwiftUI
 +
 +struct ProfileView: View {
@@ -52,7 +52,7 @@ diff --git a/UITests/ProfileUITests.swift b/UITests/ProfileUITests.swift
 new file mode 100644
 --- /dev/null
 +++ b/UITests/ProfileUITests.swift
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,11 @@
 +import XCTest
 +
 +final class ProfileUITests: XCTestCase {

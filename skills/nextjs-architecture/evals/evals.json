@@ -7,7 +7,7 @@
       "prompt": "Add a /notifications page to our Next.js 16 app (App Router, Tailwind v4, en+es dictionaries in src/i18n, primitives like Button already in src/shared/ui). It lists the signed-in user's notifications from the BFF (`GET /api/notifications` -> `{ unreadCount, items: [{ id, title, createdAt, read }] }`), shows an empty state, and has a 'Mark all as read' button (`POST /api/notifications/read-all`). No repo here: write the files you'd add or change, stubbing what you assume exists, and say which tests you'd add.",
       "expected_output": "A notifications feature: thin app/(app)/notifications/page.tsx, server-only read in features/notifications/lib, presentational components that never fetch, the mutation followed by router.refresh(), copy in both dictionaries, Button primitive and tokens (no raw hex), kebab-case files, a feature_readme.md, vitest for lib logic and a Playwright spec in both projects.",
       "files": [],
-      "assertions": [
+      "expectations": [
         "app/.../notifications/page.tsx is thin: it calls the feature's lib and renders feature components",
         "The page sits under a route group whose layout holds the signed-in chrome (e.g. app/(app)/), not the root layout",
         "The server read lives in features/notifications/lib/ and is marked server-only",
@@ -26,9 +26,9 @@
       "prompt": "can you review this diff from our web app before i merge? files/review.diff",
       "expected_output": "Flags: component fetching in useEffect, session-dependent header in the root layout, router.refresh() before router.push(), PascalCase file names, hard-coded copy, raw hex class, a Playwright spec that only tests a lib function, a class string duplicated instead of a primitive.",
       "files": [
-        "files/review.diff"
+        "evals/files/review.diff"
       ],
-      "assertions": [
+      "expectations": [
         "Flags AccountMenu fetching in useEffect (reads belong in the feature's lib/, called from a server component)",
         "Flags session-dependent header in the root layout (belongs in a route-group layout)",
         "Flags router.refresh() before router.push() (push first, then refresh)",

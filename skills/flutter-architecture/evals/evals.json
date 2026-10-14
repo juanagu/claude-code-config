@@ -7,7 +7,7 @@
       "prompt": "Our Flutter app (a Twitter-like feed, Firebase backend, cubits) needs a Bookmarks screen: it lists the tweets the signed-in user bookmarked, stored in Firestore at users/{uid}/bookmarks/{tweetId}, newest first, with loading, empty and error states. Write the Dart files for the feature (stub what you assume already exists in the app) and the tests you'd add.",
       "expected_output": "features/bookmarks/ in snake_case with a BookmarksFeature composition root, a repository port in domain/, Firestore only under integrations/ plus an in-memory adapter, Either over a sealed failure, a cubit with a sealed state switched exhaustively, copy in both dictionaries, a feature_readme.md, and cubit tests with a fake repository.",
       "files": [],
-      "assertions": [
+      "expectations": [
         "Files live under lib/src/features/bookmarks/ with snake_case names",
         "A BookmarksFeature class acts as the composition root",
         "The repository port is an abstract class under the feature's domain/",
@@ -26,9 +26,9 @@
       "prompt": "Please review this Flutter PR before merge, the diff is at files/review.diff. Point out anything that breaks how we build features.",
       "expected_output": "Flags: Firestore called directly from the feature, PascalCase file name, StreamController never closed, spinner replacing the form, hard-coded copy, `_ready ??= _init()` caching a failed future, raw Color hex.",
       "files": [
-        "files/review.diff"
+        "evals/files/review.diff"
       ],
-      "assertions": [
+      "expectations": [
         "Flags FirebaseFirestore/FirebaseAuth used directly in the feature (vendor code belongs in integrations/ behind a port)",
         "Flags ProfileRepositoryImpl.dart as violating snake_case file naming",
         "Flags the StreamController that is never closed",

@@ -2,7 +2,7 @@ diff --git a/src/features/invites/routes.ts b/src/features/invites/routes.ts
 new file mode 100644
 --- /dev/null
 +++ b/src/features/invites/routes.ts
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,11 @@
 +import type { FastifyInstance } from "fastify";
 +import { InvitesController } from "./InvitesController";
 +
@@ -18,7 +18,7 @@ diff --git a/src/features/invites/InvitesController.ts b/src/features/invites/In
 new file mode 100644
 --- /dev/null
 +++ b/src/features/invites/InvitesController.ts
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,26 @@
 +import type { FastifyReply, FastifyRequest } from "fastify";
 +import type { InviteService } from "./service/invite-service";
 +
@@ -49,7 +49,7 @@ diff --git a/src/features/invites/adapters/http-billing-client.ts b/src/features
 new file mode 100644
 --- /dev/null
 +++ b/src/features/invites/adapters/http-billing-client.ts
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,9 @@
 +import { transport } from "../../../shared/transport";
 +
 +export class HttpBillingClient {
@@ -63,7 +63,7 @@ diff --git a/src/features/invites/adapters/mongo-invite-repository.ts b/src/feat
 new file mode 100644
 --- /dev/null
 +++ b/src/features/invites/adapters/mongo-invite-repository.ts
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,14 @@
 +import type { Db } from "mongodb";
 +
 +export class MongoInviteRepository {
@@ -82,7 +82,7 @@ diff --git a/src/features/invites/jobs/send-invite-email.processor.ts b/src/feat
 new file mode 100644
 --- /dev/null
 +++ b/src/features/invites/jobs/send-invite-email.processor.ts
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,10 @@
 +import type { Job } from "bullmq";
 +import { mailer } from "../../../shared/mailer";
 +import { invitesCollection } from "../../../shared/db";

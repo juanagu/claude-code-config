@@ -1,7 +1,7 @@
 diff --git a/feature/login/build.gradle.kts b/feature/login/build.gradle.kts
 --- a/feature/login/build.gradle.kts
 +++ b/feature/login/build.gradle.kts
-@@ -6,4 +6,5 @@ dependencies {
+@@ -6,3 +6,4 @@ dependencies {
      implementation(projects.core.data)
      implementation(projects.core.designsystem)
 +    implementation(projects.feature.home)
@@ -9,9 +9,9 @@ diff --git a/feature/login/build.gradle.kts b/feature/login/build.gradle.kts
 diff --git a/feature/login/src/main/kotlin/com/acme/feature/login/LoginViewModel.kt b/feature/login/src/main/kotlin/com/acme/feature/login/LoginViewModel.kt
 --- a/feature/login/src/main/kotlin/com/acme/feature/login/LoginViewModel.kt
 +++ b/feature/login/src/main/kotlin/com/acme/feature/login/LoginViewModel.kt
-@@ -1,20 +1,48 @@
+@@ -1,4 +1,40 @@
  package com.acme.feature.login
-
+ 
 +import android.content.Context
 +import androidx.navigation.NavController
 +import com.acme.core.data.AuthRepository
@@ -54,7 +54,7 @@ diff --git a/feature/login/src/main/kotlin/com/acme/feature/login/LoginViewModel
 diff --git a/feature/login/src/main/kotlin/com/acme/feature/login/LoginScreen.kt b/feature/login/src/main/kotlin/com/acme/feature/login/LoginScreen.kt
 --- a/feature/login/src/main/kotlin/com/acme/feature/login/LoginScreen.kt
 +++ b/feature/login/src/main/kotlin/com/acme/feature/login/LoginScreen.kt
-@@ -1,10 +1,24 @@
+@@ -1,2 +1,13 @@
  @Composable
 -fun LoginScreen() {}
 +fun LoginScreen(navController: NavController) {

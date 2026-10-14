@@ -2,7 +2,7 @@ diff --git a/lib/src/features/edit_profile/data/remote/ProfileRepositoryImpl.dar
 new file mode 100644
 --- /dev/null
 +++ b/lib/src/features/edit_profile/data/remote/ProfileRepositoryImpl.dart
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,26 @@
 +import 'package:cloud_firestore/cloud_firestore.dart';
 +import 'package:firebase_auth/firebase_auth.dart';
 +import '../../domain/repositories/profile_repository.dart';
@@ -33,7 +33,7 @@ diff --git a/lib/src/features/edit_profile/presentation/cubits/edit_profile_cubi
 new file mode 100644
 --- /dev/null
 +++ b/lib/src/features/edit_profile/presentation/cubits/edit_profile_cubit.dart
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,21 @@
 +import 'dart:async';
 +import 'package:flutter_bloc/flutter_bloc.dart';
 +import '../../domain/repositories/profile_repository.dart';
@@ -59,7 +59,7 @@ diff --git a/lib/src/features/edit_profile/presentation/pages/edit_profile_page.
 new file mode 100644
 --- /dev/null
 +++ b/lib/src/features/edit_profile/presentation/pages/edit_profile_page.dart
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,30 @@
 +import 'package:flutter/material.dart';
 +import 'package:flutter_bloc/flutter_bloc.dart';
 +import '../cubits/edit_profile_cubit.dart';

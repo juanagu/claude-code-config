@@ -1,7 +1,7 @@
 diff --git a/app/(app)/feed.tsx b/app/(app)/feed.tsx
 --- a/app/(app)/feed.tsx
 +++ b/app/(app)/feed.tsx
-@@ -1,5 +1,52 @@
+@@ -1,2 +1,41 @@
 -import { FeedScreen } from "@/features/feed/screens/feed-screen";
 -export default FeedScreen;
 +import { useEffect, useState } from "react";
