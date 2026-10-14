@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pre-push hook: the fast tier's cheap checks, so a red run is caught before CI.
-# Copy to .githooks/pre-push; scripts/install-git-hooks.mjs installs a shim that runs it.
+# Copy to .githooks/pre-push; scripts/install-git-hooks.mjs installs a shim, in the repo's shared hooks dir, that runs it.
 # Skipped in CI and for deletion-only pushes. No Playwright or build here.
 # Where the full unit suite is slow, switch `test` to: npx vitest run --changed origin/main
 
@@ -10,8 +10,9 @@ PRODUCER_DIR=""
 [ -n "$CI" ] && exit 0
 
 only_deletes=1
-while read -r _ local_sha _ _; do
-  case $local_sha in *[!0]*) only_deletes=0 ;; esac
+pushed_shas=""
+while read -r _ local_sha remote_ref remote_sha; do
+  case $local_sha in *[!0]*) only_deletes=0; pushed_shas="$pushed_shas $local_sha"; range="$remote_sha..$local_sha" ;; esac
 done
 [ "$only_deletes" = 1 ] && exit 0
 
@@ -19,7 +20,16 @@ done
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 
 # Docs-only skip: mirror the paths filter in .github/workflows/ci.yml, e.g.
-# git diff --name-only origin/main...HEAD | grep -qvE '^(docs/|.*\.md$)' || exit 0
+# (a new branch has an all-zero remote sha: diff against origin/main instead)
+# git diff --name-only "$range" | grep -qvE '^(docs/|.*\.md$)' || exit 0
+
+head_sha="$(git rev-parse HEAD)"
+for sha in $pushed_shas; do
+  if [ "$sha" != "$head_sha" ]; then
+    echo "pre-push: warning: pushing a ref other than the checked-out HEAD; checks ran on the checked-out tree, not the pushed ref." >&2
+    break
+  fi
+done
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   echo "pre-push: warning: uncommitted changes; checks run on the working tree, not the commits being pushed." >&2
@@ -44,10 +54,12 @@ done
 
 if has_script contracts:check; then
   if [ -n "$PRODUCER_DIR" ] && [ -d "$PRODUCER_DIR" ]; then
-    git -C "$PRODUCER_DIR" fetch -q origin
+    git -C "$PRODUCER_DIR" fetch -q origin       || echo "pre-push: could not fetch $PRODUCER_DIR; contracts:check ran on stale refs" >&2
     run contracts:check
+  elif [ -z "$PRODUCER_DIR" ]; then
+    echo "pre-push: PRODUCER_DIR not set in .githooks/pre-push; skipping contracts:check"
   else
-    echo "pre-push: producer clone not found; skipping contracts:check"
+    echo "pre-push: producer clone $PRODUCER_DIR not found; skipping contracts:check"
   fi
 fi
 exit 0
