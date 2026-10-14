@@ -25,7 +25,7 @@
       "id": 2,
       "name": "review-planted-violations",
       "prompt": "Review this Expo PR (files/review.diff) and list what we must fix before merging.",
-      "expected_output": "Flags: route file fetching and holding layout, fetch in useEffect, unparsed `as Post[]`, token in AsyncStorage, inline style hex, string-built href, Platform.OS branch in a feature, string literal copy, sleep in Maestro.",
+      "expected_output": "Flags: route file fetching and holding layout, fetch in useEffect, unparsed `as Post[]`, token in AsyncStorage, inline style hex, string-built href, Platform.OS branch in a feature, string literal copy, sleep in Maestro, FlatList with an inline renderItem capturing state.",
       "files": [
         "evals/files/review.diff"
       ],
@@ -42,5 +42,6 @@
         "Flags FlatList with an inline renderItem capturing state (FlashList + memoised item)"
       ]
     }
-  ]
+  ],
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. Copy evals/files/* into <work>/files/; build evals write their files under outputs/code/ and need no input."
 }

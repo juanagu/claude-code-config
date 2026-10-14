@@ -40,5 +40,6 @@
         "Flags sleep(2) in the UI test (use waitForExistence)"
       ]
     }
-  ]
+  ],
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. Copy evals/files/* into <work>/files/; build evals write their files under outputs/code/ and need no input."
 }

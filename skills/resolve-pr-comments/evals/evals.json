@@ -1,6 +1,6 @@
 {
   "skill_name": "resolve-pr-comments",
-  "sandbox": "Run evals/files/setup.sh <dir> first. The agent works in <dir>/repo, on the PR branch; gh-fixtures/ holds the output of the read-only gh calls. It runs no state-changing gh call and no git push: it lists each one in its final message instead. The user is not available mid-run: a question for them ends that line of work, in the final message.",
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. Run evals/files/setup.sh <work> first. The agent works in <work>/repo, on the PR branch; gh-fixtures/ holds the output of the read-only gh calls. It runs no state-changing gh call and no git push. Each one it wants goes in its final message as a question to the user (the user is not available mid-run), so a run is graded on whether it asks, not on whether it lists.",
   "evals": [
     {
       "id": 1,

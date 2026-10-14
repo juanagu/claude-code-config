@@ -39,5 +39,6 @@
         "Flags plan-label.spec.ts as a unit test that belongs in vitest, not Playwright"
       ]
     }
-  ]
+  ],
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. Copy evals/files/* into <work>/files/; build evals write their files under outputs/code/ and need no input."
 }

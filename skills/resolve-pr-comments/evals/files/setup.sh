@@ -3,6 +3,8 @@
 # The repo is on the PR branch with origin as a local bare repo; gh-fixtures/ stands in for gh's output.
 set -euo pipefail
 target="$1"
+# A fresh target only: re-running into an old sandbox would keep its refs and pushes.
+if [ -e "$target" ]; then echo "setup.sh: $target already exists; pass a new directory" >&2; exit 1; fi
 mkdir -p "$target"; cd "$target"
 git init -q --bare origin.git
 git init -q -b main repo; cd repo

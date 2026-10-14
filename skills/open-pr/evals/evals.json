@@ -1,6 +1,6 @@
 {
   "skill_name": "open-pr",
-  "sandbox": "Run evals/files/setup.sh <dir> <mode> first. The agent works in <dir>/repo as the main session (not a subagent), with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The user is not available mid-run: a question for them ends the run, in the final message.",
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. Run evals/files/setup.sh <dir> <mode> first. The agent works in <dir>/repo as the main session (not a subagent), with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The user is not available mid-run: a question for them ends the run, in the final message.",
   "evals": [
     {
       "id": 1,

@@ -148,7 +148,7 @@ Offered one by one, listed in `skills.optional.txt`; nothing in `CLAUDE.md` depe
 | --- | --- | --- |
 | `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Finds and installs other skills. |
 | `archify` | [tt-a1i/archify](https://github.com/tt-a1i/archify) | Architecture, sequence and data-flow diagrams as standalone HTML; how the diagrams in this README were made. |
-| `skill-creator` | [anthropics/skills](https://github.com/anthropics/skills) | Writes, evaluates and tunes skills; runs the `evals/` each skill here carries. Skip it if your account already provides `anthropic-skills:skill-creator`, or two copies trigger on the same requests. |
+| `skill-creator` | [anthropics/skills](https://github.com/anthropics/skills) | Writes, evaluates and tunes skills; runs the `evals/` each skill here carries, sandboxed as [docs/skill-evals.md](docs/skill-evals.md) describes. Skip it if your account already provides `anthropic-skills:skill-creator`, or two copies trigger on the same requests. |
 
 To add one, add a `<github repo> <skill name>` line to `skills.txt`, or to `skills.optional.txt` with a description after the name, and re-run `node install.mjs`. Each run installs the current upstream version, unpinned, and needs network access. Read a skill's diff before re-running if you care what changed: its `SKILL.md` loads into every session.
 
