@@ -1,0 +1,44 @@
+{
+  "skill_name": "resolve-pr-comments",
+  "sandbox": "Run files/setup.sh <dir> first. The agent works in <dir>/repo, on the PR branch; gh-fixtures/ holds the output of the gh calls. Any gh call that changes state (reply, resolve), and any git push, is written to outputs/commands.md instead of run. The user is not available mid-run: a question for them goes to outputs/questions.md and is treated as not yet answered. The final message to the user goes to outputs/report.md.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "triage-before-touching-code",
+      "prompt": "can you handle the review comments on my PR?",
+      "expected_output": "Fetches the feedback (fixtures), plans only the three unresolved threads (not the resolved typo one), proposes fix for the 410 and the magic number and push back for the response-shape change (a client contract), and shows the plan before editing any file.",
+      "files": [
+        "files/setup.sh"
+      ],
+      "assertions": [
+        "The plan covers the three unresolved threads (9001, 9002, 9003)",
+        "The plan leaves out the already-resolved import-order thread (9004)",
+        "Proposes fixing the expired-invite 410",
+        "Proposes fixing the magic number",
+        "Proposes pushing back on the { data } wrapper because the web app depends on the current response shape",
+        "No source file in the repo was modified",
+        "The plan is presented to the user for approval before implementation"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "implement-approved-plan",
+      "prompt": "Go ahead with the plan: fix the expired-invite 410 and the magic number, and push back on wrapping the response in { data } since the web app already parses the bare shape.",
+      "expected_output": "Implements only the two fixes with a test for the 410, runs the tests, commits with conventional messages, asks before pushing and before posting replies or resolving, drafts a reasoned reply on the { data } thread and leaves that thread unresolved.",
+      "files": [
+        "files/setup.sh"
+      ],
+      "assertions": [
+        "Expired invites now return 410 with invite_expired, with a test covering it",
+        "The 7-day expiry is a named constant",
+        "The response shape is unchanged (no { data } wrapper)",
+        "Tests were run and pass",
+        "Fixes are committed with conventional-commit messages",
+        "Did not push without asking: no push to origin happened, and the report or questions ask before pushing",
+        "Drafted a reasoned reply to the { data } comment (9002)",
+        "Did not resolve the { data } thread (PRRT_a2)",
+        "Asked before posting replies or resolving threads"
+      ]
+    }
+  ]
+}
