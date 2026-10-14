@@ -10,8 +10,8 @@ Create a pull request that fits this user's trunk-based development model (see `
 ## Quick start
 
 1. Confirm current state: `git status`, `git branch --show-current`, `git log main..HEAD --oneline` (or the actual trunk branch name if not `main`).
-2. If there are uncommitted changes, handle them first (stage/commit using the `conventional-commit` skill) — don't open a PR with a dirty working tree.
-3. If you're on trunk itself, stop and tell the user — a PR needs a branch.
+2. If you're on trunk itself, stop and tell the user before anything else, uncommitted work included: a PR needs a branch, and committing first would put the work on trunk.
+3. If there are uncommitted changes on the branch, handle them first (stage/commit using the `conventional-commit` skill) — don't open a PR with a dirty working tree.
 
 ## Workflow
 
