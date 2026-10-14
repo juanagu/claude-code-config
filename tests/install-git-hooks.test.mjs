@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cleanGitEnv } from "./support/git-env.mjs";
 
 const installer = join(dirname(dirname(fileURLToPath(import.meta.url))), "templates", "install-git-hooks.mjs");
 const MARKER = "# managed-by: install-git-hooks";
@@ -16,7 +17,7 @@ const VALID_HOOK = "#!/bin/sh\nexit 0\n";
 function inRepo(committedHook, fn) {
   const dir = mkdtempSync(join(tmpdir(), "install-hooks-"));
   try {
-    execFileSync("git", ["init", "-q"], { cwd: dir });
+    execFileSync("git", ["init", "-q"], { cwd: dir, env: cleanGitEnv() });
     mkdirSync(join(dir, ".githooks"));
     writeFileSync(join(dir, ".githooks", "pre-push"), committedHook);
     fn(dir, join(dir, ".git", "hooks", "pre-push"));
@@ -26,7 +27,7 @@ function inRepo(committedHook, fn) {
 }
 
 function install(dir, env = {}) {
-  execFileSync("node", [installer], { cwd: dir, env: { ...process.env, CI: "", ...env }, stdio: "ignore" });
+  execFileSync("node", [installer], { cwd: dir, env: cleanGitEnv({ CI: "", ...env }), stdio: "ignore" });
 }
 
 test("writes the marked shim into the common hooks dir", () => {
@@ -38,7 +39,7 @@ test("writes the marked shim into the common hooks dir", () => {
 
 test("skips when core.hooksPath is set", () => {
   inRepo(VALID_HOOK, (dir, hook) => {
-    execFileSync("git", ["config", "core.hooksPath", "elsewhere"], { cwd: dir });
+    execFileSync("git", ["config", "core.hooksPath", "elsewhere"], { cwd: dir, env: cleanGitEnv() });
     install(dir);
     assert.equal(existsSync(hook), false);
   });
