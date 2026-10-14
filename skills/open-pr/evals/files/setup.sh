@@ -34,15 +34,21 @@ cat > package.json <<'EOF'
 }
 EOF
 mkdir -p scripts src test tests/e2e
-# Stands in for Playwright: appends the specs each run asked for to ../e2e-runs.log, outside the repo.
+# Stands in for Playwright: appends the specs each run asked for to ../e2e-runs.log, outside the repo,
+# with whether the branch was already on origin, so a grader can tell a run before the push from one after.
 cat > scripts/e2e.mjs <<'EOF'
 import { appendFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 const args = process.argv.slice(2).join(" ") || "(all specs)";
-appendFileSync(new URL("../../e2e-runs.log", import.meta.url), args + "\n");
+const branch = execSync("git branch --show-current").toString().trim();
+const pushed = execSync(`git ls-remote --heads origin ${branch}`).toString().trim() ? "yes" : "no";
+appendFileSync(new URL("../../e2e-runs.log", import.meta.url), `${args}\tbranch-on-origin=${pushed}\n`);
 console.log("e2e ok:", args);
 EOF
-for spec in auth notifications-bell settings; do
-  printf 'import { test } from "@playwright/test";\ntest("%s @smoke", async () => {});\n' "$spec" > "tests/e2e/$spec.spec.ts"
+# Only auth is in the smoke set, so a run of the smoke set alone never covers the notifications spec.
+printf 'import { test } from "@playwright/test";\ntest("signs in @smoke", async () => {});\n' > tests/e2e/auth.spec.ts
+for spec in notifications settings; do
+  printf 'import { test } from "@playwright/test";\ntest("%s", async () => {});\n' "$spec" > "tests/e2e/$spec.spec.ts"
 done
 cat > scripts/lint.mjs <<'EOF'
 import { readdirSync } from "node:fs";
@@ -90,16 +96,17 @@ case "$mode" in
     ;;
   flagged-e2e)
     git checkout -qb feat/notification-digest
+    mkdir -p src/notifications
     printf 'export const flags = { "feature.notifications.digest": false };\n' > src/flags.js
-    cat > src/notification-digest.js <<'EOF'
-import { flags } from "./flags.js";
+    cat > src/notifications/digest.js <<'EOF'
+import { flags } from "../flags.js";
 // Ships dark until the digest email template lands.
 export const digestEnabled = () => flags["feature.notifications.digest"];
 EOF
     cat > test/notification-digest.test.js <<'EOF'
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { digestEnabled } from "../src/notification-digest.js";
+import { digestEnabled } from "../src/notifications/digest.js";
 test("digest is off by default", () => assert.equal(digestEnabled(), false));
 EOF
     git add -A; git commit -qm "feat(notifications): daily digest behind feature.notifications.digest, off by default"

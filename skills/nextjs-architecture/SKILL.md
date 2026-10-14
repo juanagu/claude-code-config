@@ -55,7 +55,7 @@ src/
 
 ## 5. Astro static and marketing sites
 
-Static output by default, `client:*` islands only where a component needs JS, and landing pages designed desktop-led (1280 first, then 390 as its own adaptation). Sections 3, 4 and 6 apply as written.
+Static output by default, `client:*` islands only where a component needs JS, and landing pages designed desktop-led (1280 first, then 390 as its own adaptation). Section 3 (design system) and section 6's test tiers apply as written; i18n takes the Astro form in the reference (one content dictionary per locale, path-based locales), because static output has no proxy to negotiate a cookie.
 
 Read `references/astro.md` before writing or reviewing code in an Astro project.
 

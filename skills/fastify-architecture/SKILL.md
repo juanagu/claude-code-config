@@ -46,18 +46,19 @@ Folders appear when they have content: no empty `domain/`, no pass-through `serv
 - A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly.
 - Each feature's `ports/` declares only the upstream calls it makes; `adapters/` implements them over the shared transport.
 - Upstream failures are thrown as `UpstreamHttpError(status, body)`, never returned as `{ ok, status }`, because the central handler relays them through the envelope's allow-list of statuses and fields, so no adapter decides what a client sees.
+- Account-existence leak prevention where it applies: reset and resend endpoints always return the same success shape, bad tokens get one generic `401`, login never distinguishes unknown email from wrong password.
 
 Read `references/bff.md` before adding or changing a BFF feature, an upstream adapter or an auth endpoint (it holds account-existence leak prevention).
 
 ## 4. MongoDB
 
-Only repositories import the driver or ODM. Never build a query from raw input (operator injection). One logical database per service.
+Only repositories import the driver or ODM. Never build a query from raw input (operator injection). Repositories return projections, not full documents, so a new field (a password hash, a token) is never read by accident. One logical database per service.
 
 Read `references/mongodb.md` before adding or changing a repository, collection, query or index.
 
 ## 5. BullMQ and Redis
 
-Processors are idempotent, because retries and redelivery happen: a dedupe key where the operation is not naturally so. Explicit `attempts` and backoff per job type; payloads validated like HTTP input; queue names `<domain>.<action>`.
+Processors are idempotent, because retries and redelivery happen: a dedupe key where the operation is not naturally so. Explicit `attempts` and backoff per job type; payloads validated like HTTP input; queue names `<domain>.<action>`. Workers run as their own process, never inside the API, and failed jobs are visible (dead-letter queue, alerting or Bull Board).
 
 Read `references/bullmq.md` before adding or changing a queue, processor or worker, or deciding whether to queue at all.
 
@@ -92,8 +93,9 @@ Before reporting work done: lint, typecheck, unit and fast integration tests, a 
 2. Every route has input and output schemas.
 3. Errors thrown as typed errors and mapped centrally; envelope shapes unchanged unless the issue says so.
 4. Each feature's `ports/` declares only what it uses; plugins receive the narrow port type.
-5. Only repositories touch the driver; queries never built from raw input.
-6. Jobs are idempotent with explicit retry policy and payload validation.
-7. Tests: unit with mocked ports, repositories against a real MongoDB, routes via `inject`, jobs against real Redis.
-8. Files ~300 lines, functions ~40; a routes plugin that only registers is exempt.
-9. File names kebab-case, test suffixes dotted; `unicorn/filename-case` green.
+5. Only repositories touch the driver; queries never built from raw input; projections, not full documents.
+6. Jobs are idempotent with explicit retry policy and payload validation; the worker is its own process; failed jobs are visible.
+7. Auth endpoints keep account-existence leak prevention: same success shape for reset and resend, one generic `401` for bad tokens, no unknown-email vs wrong-password distinction at login.
+8. Tests: unit with mocked ports, repositories against a real MongoDB, routes via `inject`, jobs against real Redis.
+9. Files ~300 lines, functions ~40; a routes plugin that only registers is exempt.
+10. File names kebab-case, test suffixes dotted; `unicorn/filename-case` green.

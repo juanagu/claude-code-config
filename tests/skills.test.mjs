@@ -97,3 +97,15 @@ for (const name of skillNames) {
     assert.deepEqual([...named].filter((f) => !present.has(f)), [], "named but missing");
   });
 }
+
+// A reference points back at its SKILL.md as `section N "Title"`, so a renumbered or renamed
+// section shows up here instead of sending the agent to the wrong place.
+for (const file of referenceFiles) {
+  test(`${file}: every section N "Title" pointer matches a SKILL.md heading`, () => {
+    const headings = new Set([...read(skillFile(skillOf(file))).matchAll(/^## (\d+\. .+)$/gm)].map((m) => m[1].trim()));
+    const wrong = [...read(file).matchAll(/section (\d+) "([^"]+)"/g)]
+      .map((m) => `${m[1]}. ${m[2]}`)
+      .filter((heading) => !headings.has(heading));
+    assert.deepEqual(wrong, []);
+  });
+}

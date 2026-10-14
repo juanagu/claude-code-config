@@ -13,7 +13,7 @@ Each skill in `skills/` carries `evals/evals.json` in skill-creator's schema (pr
 
 ## Comparing versions
 
-Run every prompt twice in the same turn: with the skill (the agent reads the `SKILL.md` under test, and the `references/` files it points at), and without (no skill and no `SKILL.md` read). When improving a skill, snapshot it first and use the snapshot as the baseline (`old_skill`), so the comparison measures the edit rather than the skill. The architecture skills ran on Sonnet, because the implementation agents that load them do; the process skills ran on the session's model.
+Run every prompt twice in the same turn: with the skill (the agent reads the `SKILL.md` under test and only the `references/` files its pointers send it to, so a run also tests whether those pointers are followed), and without (no skill and no `SKILL.md` read). When improving a skill, snapshot it first and use the snapshot as the baseline (`old_skill`), so the comparison measures the edit rather than the skill. The architecture skills ran on Sonnet, because the implementation agents that load them do; the process skills ran on the session's model.
 
 Subagents may not write report files: save each run's final message as `outputs/report.md` (or `review.md`) yourself, then grade every expectation with quoted evidence, aggregate with skill-creator's `aggregate_benchmark` (it expects `eval-*/<config>/run-*/grading.json`), and open `eval-viewer/generate_review.py --static <file>`. On Windows set `PYTHONUTF8=1` for the viewer.
 

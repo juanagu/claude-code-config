@@ -79,7 +79,7 @@ feature/feed/src/screenshotTest/ (or src/test/ with Roborazzi)  one screenshot t
 - **The ViewModel is the state holder, not a controller.** It takes use cases and repositories by constructor injection, exposes one function per user event (`onLikeClick(id)`), launches work in `viewModelScope` only from `uiState`'s `stateIn` or from an event function (never from `init`, so an instance that nobody collects does nothing), and never references `Context`, `Activity`, a `NavController` or any Compose type. One-off effects (navigate, show a snackbar) are events in the state consumed by the screen, which calls `onEventConsumed()`; no `SharedFlow` channel of effects.
 - **The `Route` composable is the only stateful one.** `FeedRoute` obtains the ViewModel (`hiltViewModel()`), collects `enabled` first when the feature is toggled (§9), then inside the gate collects `uiState` and passes `state` plus lambdas into `FeedScreen`, which is stateless and previewable. Below it, composables receive data and callbacks; `remember` keeps only UI-local state (scroll, expanded).
 - Composables run no side effects during composition; effects go through `LaunchedEffect(key)` with a real key, `DisposableEffect` for listeners, and `rememberCoroutineScope` for user-triggered work. `Modifier` is the first optional parameter and is applied once at the root of a composable.
-- Models crossing into Compose are stable: data classes of immutable values, `ImmutableList` (`kotlinx.collections.immutable`) for lists, because Compose treats a plain `List` as unstable and cannot skip recomposing it; no mutable collections in state.
+- Models crossing into Compose are stable: data classes of immutable values, `ImmutableList` (`kotlinx.collections.immutable`) for lists, because Compose treats a plain `List` as unstable and, under strong skipping, compares it by instance, so every new list with the same items recomposes; an `ImmutableList` is stable and compared by `equals`; no mutable collections in state.
 - Results from the data layer come as `Result<T>` (`Loading`, `Success`, `Error`) via a `Flow<T>.asResult()` extension; expected domain outcomes are a sealed `FeedError` the ViewModel maps exhaustively into state. No exception reaches a ViewModel uncaught; the unexpected ones are logged through the `Logger` port and become the feature's generic error state.
 
 ## 4. Data layer
@@ -165,7 +165,7 @@ Before reporting work done: `./gradlew spotlessCheck detekt lint`, the unit test
 | `Dispatchers.IO` written inline in a repository | An injected `CoroutineDispatcher` qualified with `@Dispatcher(IO)` |
 | `LaunchedEffect(Unit)` reacting to state | A real key, or `snapshotFlow` of the value it reacts to |
 | A screen composable that calls `hiltViewModel()` below the route | The `Route` takes the ViewModel; everything under it is stateless and previewable |
-| `List<Post>` in a `UiState` data class | `ImmutableList<Post>` (`kotlinx.collections.immutable`), so Compose can skip |
+| `List<Post>` in a `UiState` data class | `ImmutableList<Post>` (`kotlinx.collections.immutable`), so Compose compares it by value and skips an unchanged list |
 | A feature module depending on another feature | Each exposes a `NavKey`; `app` wires the lambda to the key |
 | DTO annotated with `@Entity` and shown in the UI | Three types: DTO (network), entity (database), model (`core:model`); mappers in `core:data` |
 | `SharedPreferences` for a token | A Keystore-backed `SecureStore` port; DataStore for ordinary settings |

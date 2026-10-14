@@ -1,6 +1,6 @@
 {
   "skill_name": "open-pr",
-  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner builds <work> with `setup` (a path that does not exist yet) and never shows setup.sh to the agent. The agent works in <work>/repo as the main session (not a subagent) unless its prompt says otherwise, with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The fake `npm run test:e2e` appends the specs each run asked for to <work>/e2e-runs.log, which the grader reads. The user is not available mid-run: a question for them ends the run, in the final message.",
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner builds <work> with `setup` (a path that does not exist yet) and never shows setup.sh to the agent. The agent works in <work>/repo as the main session (not a subagent) unless its prompt says otherwise, with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The fake `npm run test:e2e` appends each run's specs to <work>/e2e-runs.log with `branch-on-origin=yes|no`, which the grader reads. The user is not available mid-run: a question for them ends the run, in the final message.",
   "evals": [
     {
       "id": 1,
@@ -52,12 +52,12 @@
       "name": "flagged-work-runs-touched-e2e",
       "setup": "flagged-e2e",
       "prompt": "feat/notification-digest is ready, open the PR",
-      "expected_output": "Runs lint, unit tests, the e2e smoke set and the notifications e2e spec before pushing; pushes the branch; records the review loop; writes a body with a Feature flag section naming feature.notifications.digest, its default (off) and a rollout/cleanup plan; no --draft.",
+      "expected_output": "Runs lint, unit tests, the e2e smoke set and tests/e2e/notifications.spec.ts (the spec for the changed feature folder src/notifications/) before pushing; pushes the branch; records the review loop; writes a body with a Feature flag section naming feature.notifications.digest, its default (off) and a rollout/cleanup plan; no --draft.",
       "files": [],
       "expectations": [
         "Ran lint and the unit tests before pushing",
-        "e2e-runs.log shows the smoke set ran before the push",
-        "e2e-runs.log shows tests/e2e/notifications-bell.spec.ts ran (alone or with others), not only the smoke set",
+        "e2e-runs.log has a smoke-set run (--grep @smoke) with branch-on-origin=no",
+        "e2e-runs.log has a run naming tests/e2e/notifications.spec.ts with branch-on-origin=no (the smoke set covers only auth)",
         "PR body has a Feature flag section naming feature.notifications.digest",
         "The Feature flag section states the default is off",
         "The Feature flag section gives a rollout or cleanup plan (when the flag and its dead path get removed)",
