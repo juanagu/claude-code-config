@@ -76,20 +76,21 @@ fi
 # git exports these to hooks; they would point `git -C <producer>` at this repo.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
 
+# One read of package.json: a dependency flag, then the script names.
+meta="$(node -e 'const p=JSON.parse(require("fs").readFileSync("package.json","utf8"));const deps=Object.keys({...p.dependencies,...p.devDependencies}).length;console.log([deps?"@deps":"@nodeps",...Object.keys(p.scripts??{})].join(" "))')" \
+  || { echo "pre-push: cannot read package.json" >&2; exit 1; }
+
 # Without installed dependencies the checks fail for the wrong reason; a dependency-free repo has none to install.
-if node -e 'const p=JSON.parse(require("fs").readFileSync("package.json","utf8"));process.exit(Object.keys({...p.dependencies,...p.devDependencies}).length?0:1)'; then
-  [ -d "$(git rev-parse --show-toplevel)/node_modules" ] || { echo "pre-push: run npm ci first" >&2; exit 1; }
-fi
+case " $meta " in *" @deps "*)
+  [ -d "$(git rev-parse --show-toplevel)/node_modules" ] || { echo "pre-push: run npm ci first" >&2; exit 1; } ;;
+esac
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "pre-push: note: uncommitted or untracked files present; checks run on the working tree, not only the pushed commits" >&2
 fi
 
-scripts="$(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("package.json","utf8")).scripts ?? {}).join(" "))')" \
-  || { echo "pre-push: cannot read package.json" >&2; exit 1; }
-
 has_script() {
-  case " $scripts " in *" $1 "*) return 0 ;; esac
+  case " $meta " in *" $1 "*) return 0 ;; esac
   return 1
 }
 

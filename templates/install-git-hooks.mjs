@@ -30,7 +30,7 @@ function installHooks() {
   if (!existsSync(hook)) return;
   const hooksPath = gitOptional('config', '--get', 'core.hooksPath');
   if (hooksPath) return warn(`core.hooksPath is set to ${hooksPath}; pre-push hook not installed`);
-  if (readFileSync(hook, 'utf8').includes('\r')) return warn('.githooks/pre-push has CRLF line endings; pre-push hook not installed');
+  if (readFileSync(hook, 'utf8').includes('\r')) return warn('.githooks/pre-push has CRLF line endings, so no hook was installed; add ".githooks/* text eol=lf" to .gitattributes, then run `git add --renormalize .` and re-checkout the file');
   const target = resolve(git('rev-parse', '--git-common-dir'), 'hooks', 'pre-push');
   if (existsSync(target) && !readFileSync(target, 'utf8').includes(MARKER)) {
     return warn(`${target} already exists and is not ours; left alone.`);
