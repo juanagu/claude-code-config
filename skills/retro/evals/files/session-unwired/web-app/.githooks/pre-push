@@ -1,0 +1,6 @@
+#!/bin/sh
+# Mirrors the cheap checks of CI's fast tier.
+set -e
+npm run lint
+npm run typecheck
+npm test

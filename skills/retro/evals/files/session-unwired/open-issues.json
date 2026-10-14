@@ -1,0 +1,8 @@
+{
+  "juanagu/claude-code-config": [
+    { "number": 37, "title": "Playwright: subagents run only the desktop project; make the default test:e2e command run both projects", "body": "" }
+  ],
+  "acme/web-app": [
+    { "number": 80, "title": "Upgrade to Next 16.1", "body": "" }
+  ]
+}

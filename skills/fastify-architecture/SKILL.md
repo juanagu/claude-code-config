@@ -1,6 +1,6 @@
 ---
 name: "fastify-architecture"
-description: "The architecture every Fastify service in this setup follows, in its three roles (API/microservice, BFF, BullMQ worker): routes → thin controller → use-cases → ports → adapters, one feature plugin per bounded area, schema validation on every route, typed errors mapped by one handler, MongoDB behind repositories, idempotent job processors, and the test layout. Invoke before writing, reviewing or planning any code under a Fastify project (src/, features/, tests/), and when deciding where a new file goes. Not for Next.js/Astro (nextjs-architecture), Flutter (flutter-architecture), native Android (android-architecture), native iOS (ios-architecture) or React Native (react-native-architecture)."
+description: "The architecture every Fastify service in this setup follows, as an API/microservice, a BFF or a BullMQ worker: routes → thin controller → use-cases → ports → adapters per feature plugin, schema validation, typed errors mapped by one handler, MongoDB behind repositories, idempotent job processors, and the test layout. Use this whenever you write, fix, review or plan code in a Fastify project, even if nobody says architecture: adding an endpoint, feature, upstream call, repository, queue or processor; fixing a bug under src/ or features/; reviewing or planning a PR; writing its tests; deciding where a file goes. Not for Next.js/Astro (nextjs-architecture), Flutter (flutter-architecture), native Android (android-architecture), native iOS (ios-architecture) or React Native (react-native-architecture)."
 ---
 
 # Fastify architecture
@@ -34,37 +34,32 @@ Folders appear when they have content: no empty `domain/`, no pass-through `serv
 ## 2. Rules that fail a review
 
 - Every route validates input and output with a schema (JSON Schema or Zod). Never read `request.body`, `params` or `query` unvalidated.
-- Controllers hold no business logic and no data access, and never catch an error to map it to a status: they throw typed errors and one central error handler maps them to the envelope. A catch that turns a failure into a deliberate non-error outcome (an always-`200` endpoint, a redirect on OAuth failure) is a use-case decision and lives in the service, named for what it does.
+- Controllers hold no business logic and no data access, and never catch an error to map it to a status: they throw typed errors and one central error handler maps them to the envelope, so every route fails in the same shape. A catch that turns a failure into a deliberate non-error outcome (an always-`200` endpoint, a redirect on OAuth failure) is a use-case decision and lives in the service, named for what it does.
 - Response and error-envelope shapes a client depends on are contracts: changing one is a tracked change with its own issue and the client updated together.
 - A service owns one bounded context and its own database, and reaches others only through their APIs or a queue. Never read another service's database.
-- Config and secrets from env vars; `.env` ignored, `.env.example` committed with keys and no values.
-- Logging is structured (the Fastify logger), never `console.log`, never secrets or PII.
-- Session checks make zero network calls; a stateless service verifies the request on its own.
+- Config and secrets from env vars (`.env` ignored, `.env.example` committed with keys and no values); logging is structured (the Fastify logger), never `console.log`, never secrets or PII.
+- Session checks make zero network calls, because every request pays for them; a stateless service verifies the request on its own.
 
 ## 3. BFF
 
-- Same layering and validation; the service layer shapes, aggregates and translates auth/session. Domain logic stays in the services it calls.
-- A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly. Add `service/` when there is shaping, aggregation or a deliberate outcome rule.
-- Each feature owns its upstream calls: `ports/` declares only the calls that feature makes with their types; `adapters/` implements them over the shared transport. One client with every upstream operation injected everywhere is the anti-pattern this replaces.
-- Upstream errors are relayed by throwing (`UpstreamHttpError(status, body)`); the central handler relays through the envelope's allow-list of statuses and fields, in the route's existing envelope shape. Never return `{ ok, status }` from an adapter.
-- No database of its own beyond an optional short-TTL cache. Source-of-truth data in a BFF means it has become a microservice: flag it.
-- One BFF per client surface; its feature folders mirror the client's features, not the backend's internals.
-- Account-existence leak prevention where it applies: reset and resend endpoints always return the same success shape, bad tokens get one generic `401`, login never distinguishes unknown email from wrong password.
+- Shapes, aggregates and translates auth/session. Domain logic and source-of-truth data stay in the services it calls; a BFF holding source-of-truth data has become a microservice: flag it.
+- A route that only forwards one upstream call needs no `service/`: its controller calls the feature's port directly.
+- Each feature's `ports/` declares only the upstream calls it makes; `adapters/` implements them over the shared transport.
+- Upstream failures are thrown as `UpstreamHttpError(status, body)`, never returned as `{ ok, status }`, because the central handler relays them through the envelope's allow-list of statuses and fields, so no adapter decides what a client sees.
+
+Read `references/bff.md` before adding or changing a BFF feature, an upstream adapter or an auth endpoint (it holds account-existence leak prevention).
 
 ## 4. MongoDB
 
-- Repositories are the only layer importing the driver or ODM. Explicit schema validation (Mongoose, Zod or JSON Schema).
-- Projections instead of full documents; index the fields you query or sort on and say so in the repository.
-- Never build queries from unsanitized user input (operator injection).
-- One logical database per service.
+Only repositories import the driver or ODM. Never build a query from raw input (operator injection). One logical database per service.
+
+Read `references/mongodb.md` before adding or changing a repository, collection, query or index.
 
 ## 5. BullMQ and Redis
 
-- Queue names `<domain>.<action>` (`orders.send-confirmation-email`); queue, processor and worker under the feature's `jobs/`.
-- Processors are idempotent: retries and redelivery must not double-charge or double-send; use a dedupe key where the operation is not naturally idempotent.
-- Explicit `attempts` and backoff per job type, chosen for what the job does. Validate job payloads like HTTP input.
-- Workers run as their own process in production (`npm run dev:worker` locally; emails don't send without it). Failed jobs need visibility (dead-letter queue, alerting or Bull Board).
-- Queue it when the operation is slow, tolerates eventual completion, needs retries or must not block the response; keep it synchronous when the caller needs the result to proceed.
+Processors are idempotent, because retries and redelivery happen: a dedupe key where the operation is not naturally so. Explicit `attempts` and backoff per job type; payloads validated like HTTP input; queue names `<domain>.<action>`.
+
+Read `references/bullmq.md` before adding or changing a queue, processor or worker, or deciding whether to queue at all.
 
 ## 6. Tests and checks
 

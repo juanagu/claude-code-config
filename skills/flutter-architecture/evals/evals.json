@@ -5,7 +5,7 @@
       "id": 1,
       "name": "bookmarks-feature",
       "prompt": "Our Flutter app (a Twitter-like feed, Firebase backend, cubits) needs a Bookmarks screen: it lists the tweets the signed-in user bookmarked, stored in Firestore at users/{uid}/bookmarks/{tweetId}, newest first, with loading, empty and error states. Write the Dart files for the feature (stub what you assume already exists in the app) and the tests you'd add.",
-      "expected_output": "features/bookmarks/ in snake_case with a BookmarksFeature composition root, a repository port in domain/, Firestore only under integrations/ plus an in-memory adapter, Either over a sealed failure, a cubit with a sealed state switched exhaustively, copy in both dictionaries, a feature_readme.md, and cubit tests with a fake repository.",
+      "expected_output": "features/bookmarks/ in snake_case with a BookmarksFeature composition root, a repository port in domain/, Firestore only under integrations/ plus an in-memory adapter, Either over a sealed failure for one-shot calls (a watched stream carries that failure as its error), a cubit with a sealed state switched exhaustively, copy in both dictionaries, a feature_readme.md, and cubit tests with a fake repository.",
       "files": [],
       "expectations": [
         "Files live under lib/src/features/bookmarks/ with snake_case names",
@@ -13,7 +13,7 @@
         "The repository port is an abstract class under the feature's domain/",
         "cloud_firestore is imported only under integrations/ (or main.dart), never in features/",
         "An in-memory adapter is provided for the port",
-        "The repository returns Either over a sealed failure type",
+        "Failures are typed by a sealed failure class: a one-shot repository call returns Either over it, and a watched stream carries it as the stream error (no vendor exception reaches the cubit)",
         "The cubit's state is a sealed class and the UI switches over it exhaustively",
         "Copy is added to both dictionaries through I18n, no string literals in widgets",
         "A feature_readme.md is included",

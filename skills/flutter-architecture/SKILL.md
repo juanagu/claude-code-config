@@ -1,6 +1,6 @@
 ---
 name: "flutter-architecture"
-description: "The architecture every Flutter app in this setup follows: layers and the dependency rule, feature folders with a composition-root Feature class, ports in abstractions/ with vendor and in-memory adapters, Either results and sealed states, toggles at the entry widget, a token-based theme and one page shell, strict i18n, and the test layout. Invoke before writing, reviewing or planning any Dart/Flutter code (lib/, test/, pubspec.yaml), and when deciding where a new file goes. Not for Next.js/Astro (nextjs-architecture), Fastify (fastify-architecture), native Android (android-architecture), native iOS (ios-architecture) or React Native (react-native-architecture)."
+description: "The architecture every Flutter app in this setup follows: layers and the dependency rule, feature folders with a composition-root Feature class, ports with vendor and in-memory adapters, Either results and sealed states, toggles, a token theme and page shell, strict i18n, and the test layout. Use this whenever you write, fix, review or plan Dart/Flutter code, even if nobody says \"architecture\": adding a screen, feature, cubit or repository, fixing a bug in lib/, reviewing or planning a Flutter PR, writing widget or integration_test tests, deciding where a file goes, or touching lib/, test/, integration_test/ or pubspec.yaml. Not for Next.js/Astro (nextjs-architecture), Fastify (fastify-architecture), native Android (android-architecture), native iOS (ios-architecture) or React Native (react-native-architecture)."
 ---
 
 # Flutter architecture
@@ -32,7 +32,7 @@ Imports, checked by a test in the repo (see §9):
 | `integrations/` | `abstractions/`, `core/`, `integrations/` |
 | `ioc/`, `main.dart` | anything |
 
-Vendor packages (`firebase_*`, `cloud_firestore`, `get_it`, `timeago`, any SDK) are imported only under `integrations/` and in `main.dart`. `flutter_bloc` and `dartz` are allowed everywhere below `application/`. Vendor types never cross a port: the adapter maps them to the port's own exception and codes (`AuthClientException(AuthErrorCode.invalidCredentials)`).
+Vendor packages (`firebase_*`, `cloud_firestore`, `get_it`, `timeago`, any SDK) are imported only under `integrations/` and in `main.dart`, because that keeps a vendor swappable for its in-memory twin and the rest of the app buildable without vendor config. `flutter_bloc` and `dartz` are allowed everywhere below `application/`. Vendor types never cross a port: the adapter maps them to the port's own exception and codes (`AuthClientException(AuthErrorCode.invalidCredentials)`).
 
 ## 2. A feature folder
 
@@ -52,7 +52,7 @@ features/tweet_feed/
   feature_readme.md          purpose, exposed interface, states and failures, data flow, toggle, known gaps
 ```
 
-File and folder names are snake_case (`tweet_feed_cubit.dart` holds `TweetFeedCubit`), as Effective Dart requires; the `file_names` lint in `flutter_lints` enforces it, so never disable it.
+Every feature lives under `lib/src/features/<f>/`. File and folder names are snake_case (`tweet_feed_cubit.dart` holds `TweetFeedCubit`), as Effective Dart requires and because a case-insensitive file system hides a wrongly cased import until CI; the `file_names` lint in `flutter_lints` enforces it, so never disable it.
 
 Folders appear when they have content. A feature with no rules of its own has no `use_cases/`; a feature that only renders has no `data/`.
 
@@ -72,13 +72,14 @@ class TweetFeedFeature {
 }
 ```
 
-- App-wide services (logger, flags, auth and data clients, session, formatters) come from `Injector.instance`. Everything feature-specific (repository, use case, cubit) is built here, never registered globally.
+- App-wide services (logger, flags, auth and data clients, session, formatters) come from `Injector.instance`. Everything feature-specific (repository, use case, cubit) is built here, never registered globally, so a feature's wiring is read, changed or deleted in one file.
 - Widgets receive a `createCubit` factory and own the `BlocProvider`; a row widget that must survive list updates keeps its cubit in a `State` and feeds newer data through a `sync` method.
 - Cross-feature access goes only through another feature's class: its `navigate` as a callback, its `build*()` as a widget. Never import another feature's `data/`, `domain/` or `presentation/`. A cubit never imports its own feature's composition root (put shared constants such as flag keys in `application/`).
 
 ## 4. Results, failures and state
 
-- Repositories and use cases return `Future<Either<XFailure, T>>`, with `Unit` when nothing comes back. Streams deliver errors on the stream.
+- One-shot repository and use-case calls return `Future<Either<XFailure, T>>`, with `Unit` when nothing comes back.
+- A repository that watches data returns `Stream<T>` and carries failures as stream errors, not `Either`: the adapter maps every vendor error to the feature's sealed `XFailure` and adds that as the error, so no vendor exception reaches the stream; the cubit handles it in `onError` and emits the failure state.
 - Expected failures (wrong password, email taken) are mapped without logging; everything else is logged through the `Logger` port and becomes the feature's unexpected failure.
 - States and failures are `sealed class` hierarchies matched with `switch`; no generated unions. A state that carries data carries it as a field (`TweetFeedFound(items)`).
 - A cubit owns its subscriptions: `close()` cancels; a restart cancels synchronously before listening again; `emit` is guarded by `isClosed` in async callbacks. A cubit takes a clock, a flag source or a formatter through a port, never from the widget tree.
@@ -92,7 +93,7 @@ class TweetFeedFeature {
 
 ## 6. Every outside dependency has a fake
 
-`integrations/in_memory/` implements every port in process, seeded with demo data, selected by a compile-time define (`--dart-define=IN_MEMORY_BACKEND=true`). That is how the UI is screenshotted, how CI builds without vendor config, and how repositories get integration tests with no network. A backend that cannot work on the current platform fails fast in `IocManager.register()` with a message, instead of crashing inside the vendor's init.
+`integrations/in_memory/` implements every port in process (one in-memory adapter per port), seeded with demo data, selected by a compile-time define (`--dart-define=IN_MEMORY_BACKEND=true`). That is how the UI is screenshotted, how CI builds without vendor config, and how repositories get integration tests with no network. A backend that cannot work on the current platform fails fast in `IocManager.register()` with a message, instead of crashing inside the vendor's init.
 
 ## 7. Design system and page shell
 
@@ -104,7 +105,7 @@ class TweetFeedFeature {
 
 ## 8. Copy
 
-- Dotted keys in `assets/i18n/<lang>.json`, read through `I18n.of(context).translate('feature.key')`, every shipped language with real translations. A missing key renders as the key so the gap is visible.
+- No literal copy in widgets: dotted keys in `assets/i18n/<lang>.json`, read through `I18n.of(context).translate('feature.key')`, added to every dictionary with real translations, so no locale ships a screen half in another language. A missing key renders as the key so the gap is visible.
 - A test enforces identical key sets across dictionaries, that every key used in `lib/` exists, and that every key is used.
 - Formatters that depend on language (relative time) take the language code as a parameter from the widget that has a context; they never read the widget tree themselves.
 
@@ -126,20 +127,11 @@ test_driver/
   integration_test.dart integrationDriver(onScreenshot: writes screenshots/<name>.png)
 ```
 
-### End-to-end with `integration_test`
+- **Unit and widget (`test/`):** cubits, use cases, repositories against the in-memory adapters, each page state, the architecture and i18n scans; anything that does not need the real app wired through `IocManager`.
+- **End-to-end (`integration_test/`):** critical flows through the running app on the in-memory backend, at a phone window and a desktop one, in every shipped locale; the Flutter equivalent of the Playwright tier.
+- **CI:** the smoke set on every PR, the full set on a `v*` tag, the weekly schedule and manual runs.
 
-The SDK's `integration_test` package runs real widget tests inside the running app, on a device, an emulator or a browser. It is the Flutter equivalent of the Playwright tier and follows the same rules: critical flows only, at least a phone window and a desktop one, every shipped locale, a smoke set on every PR and the full set on release.
-
-- **Backend:** always the in-memory one (`--dart-define=IN_MEMORY_BACKEND=true`), seeded with the demo account and tweets, so the flows are deterministic and CI needs no vendor config. A flow that must prove the real boundary is a manual signed-in pass on a device with the Firebase files, reported with what was seen.
-- **Web, which is what CI runs:** `chromedriver --port=4444` in the background, then
-  `flutter drive -d web-server --browser-name=chrome --browser-dimension=390,844 --driver=test_driver/integration_test.dart --target=integration_test/smoke_test.dart --dart-define=IN_MEMORY_BACKEND=true`.
-  `--browser-dimension` is how the phone window is set; run the same target again with `1280,800` for desktop. Headless is the default on `web-server`.
-- **Device or emulator:** `flutter test integration_test --dart-define=IN_MEMORY_BACKEND=true -d <device id>`; the window is the device, so run it on one phone profile and, for tablet layouts, one tablet.
-- **Locale:** `tester.platformDispatcher.localeTestValue = const Locale('es')` before pumping, then assert on the Spanish dictionary's strings (load it from `assets/i18n/es.json`, never hard-code). Every shipped locale gets the same flow.
-- **Waiting:** spinners never settle, so `pumpAndSettle` is not the tool; a `pumpUntil(tester, finder)` helper pumps in short steps until the finder matches or a timeout fails the test with the screen's current text.
-- **Screenshots:** `await binding.takeScreenshot('home-390-es')` in the test, saved by `integrationDriver(onScreenshot:)` in `test_driver/`; name them `<screen>-<width>-<locale>` and link them in the PR. These are the screenshots the UI rule asks for; the manual browser recipe in the repo's `docs/development.md` is the fallback when drive cannot run.
-- **CI tiers:** the fast job adds chromedriver (`nanasess/setup-chromedriver`) and runs `smoke_test.dart` at 390 once; the full job runs every file at both dimensions and every locale, on a `v*` tag, the weekly schedule and manual runs, and opens an issue when red. Emulator runs stay out of CI unless a change is Android-specific; they cost minutes an app this size does not need.
-- **What stays a widget test:** anything that does not need the real app wired through `IocManager`: a cubit, a page's states with fakes, the i18n parity scan. An integration test that only pumps one widget with fakes belongs in `test/`.
+Read `references/testing.md` before writing or changing tests, running `integration_test` flows, setting up CI, or taking the PR screenshots: it has the commands, the locale override, `pumpUntil`, the screenshot driver and the CI tiers.
 
 Before reporting work done: `dart format --set-exit-if-changed lib test integration_test`, `flutter analyze --fatal-infos`, `flutter test`, the integration flows the change touches (on a PR, CI runs only the smoke set), `flutter build web --release --dart-define=IN_MEMORY_BACKEND=true`, and screenshots at 390 and desktop for every state the change touches.
 
@@ -166,7 +158,7 @@ Before reporting work done: `dart format --set-exit-if-changed lib test integrat
 | `Scaffold.of(context)` from a listener above the Scaffold | `ScaffoldMessenger.of(context)` through `showTranslatedSnackBar` |
 | Cubit imports its feature's `*_feature.dart` for a constant | Constant in `application/feature_flags.dart` |
 | `StreamController` per layer, never closed | `stream.map(...)` in the use case; the cubit holds the one subscription and cancels it |
-| `_ready ??= _init()` caching a failed future | Reset the cache in the `catch` so a retry can succeed |
+| `_ready ??= _init()` caching a failed future | Reset the cache in the `catch`, because otherwise one transient failure fails every later call |
 | A flag read in two places for one screen | The host reads it once and passes the result down |
 | New copy in one dictionary | Both dictionaries, or the parity test fails |
 | `Visibility`-less `SizedBox(height: 44)` as a hidden footer | `Visibility(visible: false, maintainSize: true, ...)` around the real footer |
@@ -179,7 +171,7 @@ Copy into every `/code-review` brief for Flutter work:
 1. Every `package:app` import respects the table in §1 (the architecture test is green).
 2. Vendor packages only under `integrations/` and `main.dart`.
 3. Each feature has a Feature class with the public surface in §3 and a `feature_readme.md` that matches it.
-4. Repositories return `Either` over a sealed failure; cubits switch exhaustively; subscriptions are cancelled.
+4. One-shot calls return `Either` over a sealed failure; streams carry that failure as their error; cubits switch exhaustively; subscriptions are cancelled.
 5. Toggles are checked at the entry widget through `FeatureGate`, read once per screen.
 6. No raw hex or dp outside `application/theme/`; new UI composes `application/widgets/`.
 7. Both dictionaries updated; i18n test green.

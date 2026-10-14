@@ -20,7 +20,12 @@ const agentNames = readdirSync(join(repoDir, "agents"))
   .map((f) => f.replace(/\.md$/, ""));
 const agentFiles = agentNames.map((name) => `agents/${name}.md`);
 const architectureSkills = skillNames.filter((name) => name.endsWith("-architecture"));
-const proseFiles = ["CLAUDE.md", "README.md", ...agentFiles, ...skillNames.map(skillFile)];
+const referencesOf = (name) => {
+  const dir = join(repoDir, "skills", name, "references");
+  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")) : [];
+};
+const referenceFiles = skillNames.flatMap((name) => referencesOf(name).map((f) => `skills/${name}/references/${f}`));
+const proseFiles = ["CLAUDE.md", "README.md", ...agentFiles, ...skillNames.map(skillFile), ...referenceFiles];
 
 // Fenced blocks are kept: in the skills they are layout trees whose comments carry pointers too.
 const sections = new Map(skillNames.map((name) => [name, new Set([...read(skillFile(name)).matchAll(/^## (\d+)\./gm)].map((m) => m[1]))]));
@@ -79,5 +84,16 @@ for (const file of proseFiles) {
         (name.endsWith("-architecture") && !skillNames.includes(name)),
     );
     assert.deepEqual(dangling, [], `dangling: ${dangling.join(", ")}`);
+  });
+}
+
+// A reference loads only when SKILL.md tells the agent to read it, so an unnamed file is dead weight
+// and a named one that is missing sends the agent looking for nothing.
+for (const name of skillNames) {
+  test(`${name}: SKILL.md names every references/ file, and each one it names exists`, () => {
+    const named = new Set([...read(skillFile(name)).matchAll(/references\/([\w.-]+\.md)/g)].map((m) => m[1]));
+    const present = new Set(referencesOf(name));
+    assert.deepEqual([...present].filter((f) => !named.has(f)), [], "never named in SKILL.md");
+    assert.deepEqual([...named].filter((f) => !present.has(f)), [], "named but missing");
   });
 }

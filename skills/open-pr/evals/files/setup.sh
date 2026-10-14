@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds a sandbox repo for one open-pr eval: setup.sh <target-dir> <happy|on-main-dirty|failing-tests>
+# Builds a sandbox repo for one open-pr eval: setup.sh <target-dir> <happy|on-main-dirty|failing-tests|flagged-e2e>
 # origin is a local bare repo, so a push is real but goes nowhere.
 set -euo pipefail
 # The sandbox ignores the caller's git config and hooks: signing or a global pre-push would break or change it.
@@ -7,8 +7,8 @@ unset GIT_DIR GIT_WORK_TREE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 target="$1"; mode="$2"
 case "$mode" in
-  happy|on-main-dirty|failing-tests) ;;
-  *) echo "setup.sh: unknown mode '$mode' (happy, on-main-dirty, failing-tests)" >&2; exit 1 ;;
+  happy|on-main-dirty|failing-tests|flagged-e2e) ;;
+  *) echo "setup.sh: unknown mode '$mode' (happy, on-main-dirty, failing-tests, flagged-e2e)" >&2; exit 1 ;;
 esac
 # A fresh target only: re-running into an old sandbox would keep its refs and pushes.
 if [ -e "$target" ]; then echo "setup.sh: $target already exists; pass a new directory" >&2; exit 1; fi
@@ -27,11 +27,23 @@ cat > package.json <<'EOF'
   "type": "module",
   "scripts": {
     "lint": "node scripts/lint.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:e2e:smoke": "node scripts/e2e.mjs --grep @smoke"
   }
 }
 EOF
-mkdir -p scripts src test
+mkdir -p scripts src test tests/e2e
+# Stands in for Playwright: appends the specs each run asked for to ../e2e-runs.log, outside the repo.
+cat > scripts/e2e.mjs <<'EOF'
+import { appendFileSync } from "node:fs";
+const args = process.argv.slice(2).join(" ") || "(all specs)";
+appendFileSync(new URL("../../e2e-runs.log", import.meta.url), args + "\n");
+console.log("e2e ok:", args);
+EOF
+for spec in auth notifications-bell settings; do
+  printf 'import { test } from "@playwright/test";\ntest("%s @smoke", async () => {});\n' "$spec" > "tests/e2e/$spec.spec.ts"
+done
 cat > scripts/lint.mjs <<'EOF'
 import { readdirSync } from "node:fs";
 const bad = readdirSync("src").filter((f) => /[A-Z]/.test(f));
@@ -47,7 +59,7 @@ import assert from "node:assert/strict";
 import { formatDate } from "../src/format-date.js";
 test("formats", () => assert.equal(formatDate(new Date("2026-01-02T10:00:00Z")), "2026-01-02"));
 EOF
-printf '# notifications-svc\n\nRun `npm run lint` and `npm test` before pushing.\n' > README.md
+printf '# notifications-svc\n\nRun `npm run lint` and `npm test` before pushing. `npm run test:e2e` runs the Playwright suite in tests/e2e/; PR CI runs only `npm run test:e2e:smoke`.\n' > README.md
 git add -A; git commit -qm "chore: initial commit"; git push -q -u origin main
 
 add_unread_count() {
@@ -76,6 +88,22 @@ case "$mode" in
     add_unread_count 1
     printf '\nUnread counts come from `src/unread-count.js`.\n' >> README.md
     ;;
+  flagged-e2e)
+    git checkout -qb feat/notification-digest
+    printf 'export const flags = { "feature.notifications.digest": false };\n' > src/flags.js
+    cat > src/notification-digest.js <<'EOF'
+import { flags } from "./flags.js";
+// Ships dark until the digest email template lands.
+export const digestEnabled = () => flags["feature.notifications.digest"];
+EOF
+    cat > test/notification-digest.test.js <<'EOF'
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { digestEnabled } from "../src/notification-digest.js";
+test("digest is off by default", () => assert.equal(digestEnabled(), false));
+EOF
+    git add -A; git commit -qm "feat(notifications): daily digest behind feature.notifications.digest, off by default"
+    ;;
   failing-tests)
     git checkout -qb feat/unread-count
     add_unread_count 2
@@ -87,4 +115,5 @@ esac
 mkdir -p ../gh-fixtures
 printf '{"defaultBranchRef":{"name":"main"},"nameWithOwner":"acme/notifications-svc"}\n' > ../gh-fixtures/repo-view.json
 printf '[]\n' > ../gh-fixtures/pr-list-head-feat-unread-count.json
+printf '[]\n' > ../gh-fixtures/pr-list-head-feat-notification-digest.json
 printf '{"number":42,"state":"OPEN","title":"Show how many notifications are unread","body":"Add a helper that counts unread notifications."}\n' > ../gh-fixtures/issue-view-42.json

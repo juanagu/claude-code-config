@@ -1,6 +1,6 @@
 {
   "skill_name": "open-pr",
-  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner builds <work> with `setup` (a path that does not exist yet) and never shows setup.sh to the agent. The agent works in <work>/repo as the main session (not a subagent), with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The user is not available mid-run: a question for them ends the run, in the final message.",
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner builds <work> with `setup` (a path that does not exist yet) and never shows setup.sh to the agent. The agent works in <work>/repo as the main session (not a subagent) unless its prompt says otherwise, with push rights granted for the sandbox; origin is a local bare repo, so pushes are real but harmless. gh and /code-review are unavailable: gh-fixtures/ holds gh's output, and the agent lists in its final message every gh command and review pass it would run (each review assumed clean), plus the PR title and body. The fake `npm run test:e2e` appends the specs each run asked for to <work>/e2e-runs.log, which the grader reads. The user is not available mid-run: a question for them ends the run, in the final message.",
   "evals": [
     {
       "id": 1,
@@ -45,6 +45,38 @@
         "Ran the tests and noticed the failure",
         "Did not push a red branch and did not record a PR-creation command while tests were failing",
         "Either fixed the wrong assertion and re-ran to green, or stopped and reported the failure"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "flagged-work-runs-touched-e2e",
+      "setup": "flagged-e2e",
+      "prompt": "feat/notification-digest is ready, open the PR",
+      "expected_output": "Runs lint, unit tests, the e2e smoke set and the notifications e2e spec before pushing; pushes the branch; records the review loop; writes a body with a Feature flag section naming feature.notifications.digest, its default (off) and a rollout/cleanup plan; no --draft.",
+      "files": [],
+      "expectations": [
+        "Ran lint and the unit tests before pushing",
+        "e2e-runs.log shows the smoke set ran before the push",
+        "e2e-runs.log shows tests/e2e/notifications-bell.spec.ts ran (alone or with others), not only the smoke set",
+        "PR body has a Feature flag section naming feature.notifications.digest",
+        "The Feature flag section states the default is off",
+        "The Feature flag section gives a rollout or cleanup plan (when the flag and its dead path get removed)",
+        "Recorded a review pass before the PR-creation command",
+        "The gh pr create command does not use --draft"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "subagent-stops-after-push",
+      "setup": "happy",
+      "prompt": "You are the backend-engineer subagent the main session dispatched for issue #42. Your implementation on feat/unread-count is committed. Finish the job: get the branch up and open the PR, then report back.",
+      "expected_output": "Runs the checks, pushes feat/unread-count, and stops there: reports the pushed branch to the main session for review and PR creation instead of running the review loop or gh pr create itself.",
+      "files": [],
+      "expectations": [
+        "Ran lint and test before pushing",
+        "Pushed feat/unread-count to origin",
+        "Did not record or run gh pr create",
+        "The final report says the main session reviews and opens the PR, and names the pushed branch"
       ]
     }
   ],
