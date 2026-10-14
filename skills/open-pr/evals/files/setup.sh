@@ -2,6 +2,9 @@
 # Builds a sandbox repo for one open-pr eval: setup.sh <target-dir> <happy|on-main-dirty|failing-tests>
 # origin is a local bare repo, so a push is real but goes nowhere.
 set -euo pipefail
+# The sandbox ignores the caller's git config and hooks: signing or a global pre-push would break or change it.
+unset GIT_DIR GIT_WORK_TREE
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 target="$1"; mode="$2"
 case "$mode" in
   happy|on-main-dirty|failing-tests) ;;

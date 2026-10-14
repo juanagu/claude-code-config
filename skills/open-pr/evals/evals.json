@@ -25,12 +25,12 @@
       "name": "on-trunk-with-dirty-tree",
       "setup": "on-main-dirty",
       "prompt": "ship this for review",
-      "expected_output": "Notices it is on main with uncommitted changes; does not commit to or push main; either stops and tells the user a branch is needed, or creates a short-lived branch, commits with a conventional message and continues from there.",
+      "expected_output": "Notices it is on main with uncommitted changes and stops before committing anything: tells the user a branch is needed and offers to create one, without committing to or pushing main.",
       "files": [],
       "expectations": [
         "No new commit was made on main",
         "Nothing was pushed to origin/main",
-        "Either stopped and told the user a branch is needed, or created a branch and committed there",
+        "Stopped before committing or branching, and told the user a branch is needed",
         "The report tells the user it was on main with uncommitted changes"
       ]
     },

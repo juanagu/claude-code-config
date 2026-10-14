@@ -39,8 +39,10 @@ for (const skill of skills) {
     const lines = readFileSync(diff, "utf8").replace(/\r\n/g, "\n").split("\n");
     const wrong = [];
     lines.forEach((line, i) => {
-      const m = line.match(/^@@ -\d+,(\d+) \+\d+,(\d+) @@/);
+      const m = line.match(/^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@/);
       if (!m) return;
+      m[1] ??= "1"; // a count left out means one line
+      m[2] ??= "1";
       let oldN = 0, newN = 0;
       for (let j = i + 1; j < lines.length && !/^(@@ |diff --git )/.test(lines[j]); j++) {
         if (lines[j].startsWith(" ")) { oldN++; newN++; }

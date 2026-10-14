@@ -2,6 +2,9 @@
 # Builds a sandbox PR for the resolve-pr-comments evals: setup.sh <target-dir>
 # The repo is on the PR branch with origin as a local bare repo; gh-fixtures/ stands in for gh's output.
 set -euo pipefail
+# The sandbox ignores the caller's git config and hooks: signing or a global pre-push would break or change it.
+unset GIT_DIR GIT_WORK_TREE
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 target="$1"
 # A fresh target only: re-running into an old sandbox would keep its refs and pushes.
 if [ -e "$target" ]; then echo "setup.sh: $target already exists; pass a new directory" >&2; exit 1; fi
