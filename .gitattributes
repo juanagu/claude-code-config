@@ -1,2 +1,3 @@
 skills.txt text eol=lf
 skills.optional.txt text eol=lf
+templates/pre-push text eol=lf

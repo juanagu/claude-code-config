@@ -15,6 +15,9 @@ while read -r _ local_sha _ _; do
 done
 [ "$only_deletes" = 1 ] && exit 0
 
+# Git exports GIT_DIR to hooks, so `git -C <other repo>` in a check would read this repo instead.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
 # Docs-only skip: mirror the paths filter in .github/workflows/ci.yml, e.g.
 # git diff --name-only origin/main...HEAD | grep -qvE '^(docs/|.*\.md$)' || exit 0
 
