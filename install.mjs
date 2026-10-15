@@ -20,6 +20,7 @@ const repoDir = dirname(self);
 const RTK_URL = "https://github.com/rtk-ai/rtk";
 
 async function main() {
+  console.warn("claude-code-config is deprecated: its successor is juanagu/agent-config. Switch with: npx -y github:juanagu/agent-config -- --global --tool claude");
   const flags = parseArgs(process.argv.slice(2));
   if (flags.help) {
     console.log(HELP);

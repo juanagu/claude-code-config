@@ -1,5 +1,7 @@
 # claude-code-config
 
+> **Deprecated.** This repo has moved to [**juanagu/agent-config**](https://github.com/juanagu/agent-config), its successor: the standards, agents, skills and git guard for Claude Code **and** Cursor, GitHub Copilot and Antigravity CLI, from one source. Nothing new lands here. To switch a machine: `npx -y github:juanagu/agent-config -- --global --tool claude`; the [migration guide](https://github.com/juanagu/agent-config/blob/main/docs/migrating-from-claude-code-config.md) maps this layout to the new one and lists what changed on purpose. The text below describes the repo as it was.
+
 My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents, skills and hooks. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
 
 It's opinionated: a specific stack (Next.js, Astro, Fastify, MongoDB, BullMQ, Flutter, Kotlin/Compose, Swift/SwiftUI, React Native on Expo, Cloudflare), trunk-based development, and Airbnb as the UX reference. If you want to borrow it, fork it and change `CLAUDE.md` to match how you work. See [Using it yourself](#using-it-yourself).
