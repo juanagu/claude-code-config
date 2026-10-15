@@ -15,6 +15,8 @@ import { gitOriginUrl, gitPull, run, runNode } from "../scripts/install/env.mjs"
 import { readJson } from "../scripts/install/json.mjs";
 import { expandHome } from "../scripts/install/paths.mjs";
 
+console.warn("claude-code-config is deprecated: its successor is juanagu/agent-config (Claude Code, Cursor, Copilot, Antigravity CLI). Switch with: npx -y github:juanagu/agent-config -- --global --tool claude");
+
 const DEFAULT_DIR = join(homedir(), "Projects", "claude-code-config");
 const packageJson = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
 

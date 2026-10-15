@@ -1,6 +1,6 @@
 # claude-code-config
 
-> **Deprecated.** This repo has moved to [**juanagu/agent-config**](https://github.com/juanagu/agent-config), which holds the same standards, agents, skills and git guard for Claude Code **and** Cursor, GitHub Copilot and Antigravity CLI, from one source. Nothing new lands here. To switch a machine: `npx -y github:juanagu/agent-config -- --global --tool claude`; the [migration guide](https://github.com/juanagu/agent-config/blob/main/docs/migrating-from-claude-code-config.md) maps every file here to its new place. The text below describes the repo as it was.
+> **Deprecated.** This repo has moved to [**juanagu/agent-config**](https://github.com/juanagu/agent-config), its successor: the standards, agents, skills and git guard for Claude Code **and** Cursor, GitHub Copilot and Antigravity CLI, from one source. Nothing new lands here. To switch a machine: `npx -y github:juanagu/agent-config -- --global --tool claude`; the [migration guide](https://github.com/juanagu/agent-config/blob/main/docs/migrating-from-claude-code-config.md) maps this layout to the new one and lists what changed on purpose. The text below describes the repo as it was.
 
 My global [Claude Code](https://claude.com/claude-code) setup: engineering standards, subagents, skills and hooks. It lives in a repo so a new machine gets it in a couple of commands, and so changes to how Claude works go through a reviewed PR like any other code.
 
