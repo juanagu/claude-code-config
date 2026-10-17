@@ -1,6 +1,6 @@
 ---
 name: "retro"
-description: "Retrospective on how the setup (CLAUDE.md, agents, skills, hooks, a repo's checks) let something slip, ending in proposed fixes filed as issues. Trigger at the end of a feature pipeline when something slipped: a review or CI found what an earlier stage should have caught, the user corrected an approach, a gate was skipped, a subagent's claim didn't hold, or time went into finding something the docs should have pointed at. Also when the user asks for a retro. Not for reviewing code (use code-review) or a product post-mortem."
+description: "Runs a retrospective on how the setup (CLAUDE.md, agents, skills, hooks, a repo's lint, tests and CI) let something slip, and ends in proposed fixes filed as issues for the user to approve, never edits. Use this when the user asks for a retro or a post-mortem of a session, and on your own at the end of a pipeline when something slipped: review or CI caught what an earlier stage should have, the user corrected the approach, a gate or stage was skipped, a subagent's claim didn't hold, or time went into finding what the docs should have pointed at. Not for reviewing code (code-review) or a product post-mortem."
 ---
 
 # Retro

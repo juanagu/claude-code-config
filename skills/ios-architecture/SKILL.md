@@ -1,6 +1,6 @@
 ---
 name: "ios-architecture"
-description: "The architecture every native iOS app in this setup follows: Swift 6 with strict concurrency and SwiftUI, MVVM with @Observable view models and unidirectional data flow, one State enum per screen, clean layers as local Swift packages (Abstractions, Core, Application, Features, Integrations) whose target graph enforces the dependency rule, initializer injection with a Feature composition root, typed throws for failures, NavigationStack with typed routes, an in-memory backend for previews and UI tests, a token-based design system, String Catalogs, and the test layout (Swift Testing, snapshot tests, XCUITest). Invoke before writing, reviewing or planning any Swift/iOS code (*.swift, Package.swift, *.xcodeproj, *.xctestplan), and when deciding where a new file goes. Not for Flutter (flutter-architecture), Android (android-architecture), React Native (react-native-architecture), Next.js/Astro (nextjs-architecture) or Fastify (fastify-architecture)."
+description: "The architecture every native iOS app in this setup follows: Swift 6 and SwiftUI, MVVM with @Observable view models and one State enum per screen, layers as local Swift packages, a Feature composition root, typed throws, typed NavigationStack routes, an in-memory backend, a token design system, String Catalogs, and the test layout. Use this whenever you write, fix, review or plan Swift/iOS code, even when nobody says architecture: adding a screen or feature, fixing a bug, reviewing a PR, writing tests, deciding where a file goes, or touching *.swift, Package.swift, *.xcodeproj or *.xctestplan. Not for Flutter (flutter-architecture), Android (android-architecture), React Native (react-native-architecture), Next.js/Astro (nextjs-architecture) or Fastify (fastify-architecture)."
 ---
 
 # iOS architecture
@@ -73,8 +73,8 @@ public struct FeedFeature {
 }
 ```
 
-- Initializer injection everywhere; no service locator, no DI framework. `App` builds one `AppDependencies` container of app-wide services (logger, flags, auth and data clients, session, secure store) and hands each feature the narrow protocol it declares (`FeedDependencies`), never the whole container.
-- Everything feature-specific (repository, use case, view model) is built in the Feature type and nowhere else. A view owns its view model with `@State private var viewModel`, created by the feature's factory.
+- Initializer injection everywhere; no service locator, no DI framework. `App` builds one `AppDependencies` container of app-wide services (logger, flags, auth and data clients, session, secure store) and hands each feature the narrow protocol it declares (`FeedDependencies`), never the whole container, because the protocol states what the feature can touch and lets a preview or test supply only that.
+- Everything feature-specific (repository, use case, view model) is built in the Feature type and nowhere else, so swapping a backend changes one place. A view owns its view model with `@State private var viewModel`, created by the feature's factory.
 - Cross-feature access goes only through the other Feature type: its `makeView(...)` as a view, its route as a value. Never import another feature's `Domain/`, `Data/` or `Presentation/`. A view model never imports its own feature's composition root.
 
 ## 4. State, intents and concurrency
@@ -89,7 +89,7 @@ public struct FeedFeature {
 ## 5. Navigation
 
 - A `NavigationStack` per flow with a typed path: `enum Route: Hashable` per feature, a `@MainActor @Observable final class Router` owned by the flow's host in `App` (or by the feature that owns the flow). Views emit navigation through closures (`onPostSelected`) that the host maps to `router.push(.postDetail(id))`; a view never constructs another feature's view.
-- Modal presentation (`sheet`, `fullScreenCover`) binds to an optional route value on the router, never to a `Bool` per sheet.
+- Modal presentation (`sheet`, `fullScreenCover`) binds to one optional route value on the router, never to a `Bool` per sheet, because one value makes two sheets at once unrepresentable and carries the data the sheet needs.
 - Deep links and Universal Links are parsed in `App` into route values; every parameter is validated before use.
 - Adaptive layout reads `horizontalSizeClass` once at the screen and passes the answer down; `NavigationSplitView` for list-detail on iPad. The iPhone layout is the base; iPad and landscape are enhancements.
 
@@ -106,7 +106,7 @@ public struct FeedFeature {
 
 ## 8. Every outside dependency has a fake
 
-`Integrations/InMemory` implements every port in process, seeded with demo data, selected by a launch argument (`-IN_MEMORY_BACKEND YES`) or the `Demo` scheme. That is how previews render every state, how the UI tests run with no network, how CI builds without vendor config, and what a reviewer installs. A backend that cannot work in the current build fails fast in `AppDependencies` with a message, not inside a vendor's init.
+`Integrations/InMemory` implements every port in process, seeded with demo data, selected by a launch argument (`-IN_MEMORY_BACKEND YES`) or the `Demo` scheme. That is how previews render every state, how the UI tests run with no network, how CI builds without vendor config, and what a reviewer installs, because one fake behind the real ports stays honest where per-test mocks drift. A backend that cannot work in the current build fails fast in `AppDependencies` with a message, not inside a vendor's init.
 
 ## 9. Design system and screen shell
 
@@ -133,11 +133,13 @@ Tests/Architecture/                a test that scans import lines against the ta
 App.xctestplan, Smoke.xctestplan   the full and the fast tier
 ```
 
-- **Unit tests** are Swift Testing, `@MainActor` where the subject is; a view model test drives intents and asserts the sequence of states, never private state. Fakes come from the in-memory adapters or a `TestSupport` target, never a mocking framework.
-- **Snapshot tests are the two-viewport rule here.** Each screen state is recorded with `swift-snapshot-testing` at `.iPhone13` and `.iPadPro11` layouts, light and dark, in every shipped locale (inject the locale through the environment), references committed; a changed screen updates its references in the same PR and the image diff is reviewed. These are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` against the `Demo` scheme, named `<screen>-<device>-<locale>`.
-- **End-to-end** is XCUITest, kept to the critical flows, launched with `-IN_MEMORY_BACKEND YES -AppleLanguages (es) -AppleLocale es_ES` per locale. Spinners never settle: wait with `XCTNSPredicateExpectation`/`waitForExistence(timeout:)` on an accessibility identifier, never `sleep`. Each flow attaches screenshots (`XCTAttachment(screenshot:)`, `.keepAlways`) named `<screen>-<device>-<locale>`; they are the screenshots linked in the PR.
-- **Lint and format:** `swiftlint --strict` with `file_length` (300), `function_body_length` (40), `type_body_length`, `file_name` and `force_cast`/`force_try` as errors, a baseline for today's offenders that may only shrink; `swiftformat --lint`. Never a disable comment to get past them.
-- **CI tiers, and the macOS multiplier.** GitHub's macOS runners bill at ten times the Linux rate against the shared minutes budget, so the PR tier is the smallest run that proves the build: `swiftlint`, `swiftformat --lint`, `xcodebuild build-for-testing` once, then `test-without-building -testPlan Smoke` on one iPhone simulator (unit, snapshot and the smoke UI flow). The full plan (every UI flow, both simulators, every locale) runs on a `v*` tag, the weekly run and manual runs, and opens an issue when red. Cache DerivedData and SwiftPM.
+- **Unit:** view models are tested by driving intents and asserting the state sequence, with fakes from the in-memory adapters, never a mocking framework.
+- **Snapshot:** one per screen state at iPhone and iPad, light and dark, every locale; references committed and each changed image reviewed. These are the PR screenshots.
+- **End-to-end:** XCUITest on the critical flows against the in-memory backend, on an iPhone and an iPad simulator, every locale; wait on accessibility identifiers, never `sleep`.
+- **Lint:** `swiftlint --strict` (size and `file_name` rules as errors, a baseline that only shrinks) and `swiftformat --lint`; never a disable comment.
+- **CI:** the PR tier runs the `Smoke` plan on one iPhone simulator, because macOS minutes bill at ten times Linux; the full plan runs on a `v*` tag, weekly and manually.
+
+Read `references/testing.md` before writing or changing tests, setting up CI, or taking the PR screenshots: it has the snapshot devices, the XCUITest launch arguments and waits, locale handling, and the CI commands.
 
 Before reporting work done: `swiftformat --lint`, `swiftlint --strict`, the unit and snapshot tests of every package touched (updating references when the change is intentional), the UI flows the change touches on an iPhone and an iPad simulator, a `Demo` build, and screenshots at iPhone and iPad, light and dark, for every state and locale the change touches.
 

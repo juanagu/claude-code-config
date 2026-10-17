@@ -1,6 +1,6 @@
 ---
 name: "resolve-pr-comments"
-description: "Fetches unresolved review comments on an open PR, turns them into a triaged fix plan, implements the fixes, and replies/marks threads resolved with explicit confirmation before anything is pushed or posted. Trigger when the user asks to address/resolve/handle PR feedback, review comments, or reviewer requests on an already-open PR. Do not trigger for writing a new review (use code-review) or for opening a new PR (use open-pr)."
+description: "Works through reviewer feedback on an open PR: fetches the unresolved threads, shows a triaged plan (fix, push back, already addressed) before touching code, implements the agreed fixes, and asks before pushing, replying or resolving threads. Use this whenever the user wants review feedback handled, even if they don't say \"resolve\": \"address the review\", \"fix what the reviewer said\", \"handle the comments on #17\", \"the PR has changes requested\", a pasted review comment, or a PR link with a request to deal with its feedback. Not for writing a review (code-review) or opening a PR (open-pr)."
 ---
 
 # Resolve PR comments

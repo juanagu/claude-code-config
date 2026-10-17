@@ -1,6 +1,6 @@
 ---
 name: "react-native-architecture"
-description: "The architecture every React Native app in this setup follows: Expo with development builds and continuous native generation on the New Architecture, TypeScript strict, Expo Router with thin route files over feature folders (components, hooks, lib port, screens), TanStack Query for server state and Zustand for client state, Zod at every boundary, tokens in one theme module with primitives in shared/ui, a Screen shell, typed i18n dictionaries, expo-secure-store for secrets, and the test layout (Jest + React Native Testing Library, MSW validated against the backend contract, Maestro for e2e on both platforms). Invoke before writing, reviewing or planning any code under an Expo/React Native project (app/, src/, app.json, eas.json, .maestro/), and when deciding where a new file goes. Not for Next.js/Astro (nextjs-architecture), Flutter (flutter-architecture), Android (android-architecture), iOS (ios-architecture) or Fastify (fastify-architecture)."
+description: "The architecture every React Native app in this setup follows: Expo, Expo Router with thin route files over feature folders, TanStack Query and Zustand, Zod at every boundary, theme tokens and shared/ui primitives, and Jest, MSW and Maestro tests. Use this whenever you add or change a screen, route, hook, list, form or feature in an Expo/React Native app, fix a bug in one, review or plan a PR in it, write its tests or Maestro flows, or decide where a file goes, even when nobody says architecture. Signs of the stack: app/_layout.tsx, app.json, eas.json, .maestro/. Not for Next.js/Astro (nextjs-architecture), Flutter (flutter-architecture), Android (android-architecture), iOS (ios-architecture) or Fastify (fastify-architecture)."
 ---
 
 # React Native architecture
@@ -49,7 +49,7 @@ Enforced by `eslint-plugin-boundaries` (or `dependency-cruiser`) once the repo o
 
 ## 2. State
 
-- **Server state is TanStack Query.** Each feature keeps a query-key factory in `lib/query-keys.ts` and its hooks in `hooks/`; mutations invalidate by key or update the cache optimistically and roll back in `onError`. Persist the cache (`@tanstack/query-async-storage-persister`) only for data the product must show offline.
+- **Server state is TanStack Query**, because it brings caching, retries and refetch-on-focus that a `useEffect` fetch reimplements badly. Each feature keeps a query-key factory in `lib/query-keys.ts`, so a mutation invalidates exactly the keys it changed, and its hooks in `hooks/`; mutations invalidate by key or update the cache optimistically and roll back in `onError`. Persist the cache (`@tanstack/query-async-storage-persister`) only for data the product must show offline.
 - **Client state is Zustand**, one small store per feature under `store/` when state outlives a screen; `useState`/`useReducer` when it does not. No Redux unless the project already has it; no global "app store".
 - **Forms are React Hook Form + Zod**, composing `shared/ui`'s `Field` and `FormErrorMessage`. A form stays mounted while submitting (fields disabled, progress inside the button) so a failure keeps what was typed; failures the user fixes by retyping render inline, the unexpected ones as a toast through `Screen`.
 - **Session** is `features/auth/store`, a small store hydrated from `expo-secure-store` at launch, read by the `(app)` and `(auth)` layouts for their redirects, and the only place the token lives in memory.
@@ -57,17 +57,17 @@ Enforced by `eslint-plugin-boundaries` (or `dependency-cruiser`) once the repo o
 
 ## 3. Navigation and chrome
 
-- Expo Router with `experiments.typedRoutes`; every `href` comes from the feature's `lib/routes.ts`, never a string literal in a component.
+- Expo Router with `experiments.typedRoutes`; every `href` comes from the feature's `lib/routes.ts`, never a string literal in a component, so a renamed route changes one file and the type checker finds every caller.
 - Route groups own route- or session-dependent chrome: `(auth)/_layout.tsx` and `(app)/_layout.tsx` hold the guards (`<Redirect>` from the session store) and the stack or tabs; the root `_layout.tsx` holds only providers (query client, theme, i18n, safe area) and the splash gate. Anything that renders on more than one route is checked against each route's existing shell for duplicated branding or redundant controls.
 - Screens navigate with `router.push(routes.postDetail(id))`; a screen never imports another feature's screen component.
 - Deep links and universal links are declared in `app.json` (`scheme`, associated domains, intent filters); the route file validates every parameter before use.
 
 ## 4. Design system and the Screen shell
 
-- Tokens live once in `src/shared/theme/` (colors with light and dark values, spacing, radii, type scale), read through `useTheme()` and `StyleSheet.create` in a `useStyles` hook, or through NativeWind's `tailwind.config` tokens when the project chose NativeWind. No raw hex, pixel or font-size values in `src/features/`. Dark mode comes from `useColorScheme` inside the theme, never from a component.
-- Primitives in `src/shared/ui/` (`Button`, `Field`, `FormErrorMessage`, `MessageView`, `Screen`, brand mark); feature code composes them and never writes a variant's style object inline. The same style block in two files means a missing primitive: extract it.
+- Tokens live once in `src/shared/theme/` (colors with light and dark values, spacing, radii, type scale), read through `useTheme()` and `StyleSheet.create` in a `useStyles` hook, or through NativeWind's `tailwind.config` tokens when the project chose NativeWind. No raw hex, pixel or font-size values in `src/features/`, because a raw value is missed by dark mode and by every later re-theme. Dark mode comes from `useColorScheme` inside the theme, never from a component.
+- Primitives in `src/shared/ui/` (`Button`, `Field`, `FormErrorMessage`, `MessageView`, `Screen`, brand mark); feature code composes them and never writes a variant's style object inline. The same style block in two files means a missing primitive: extract it, because hand-rolled copies drift apart.
 - One `Screen` owns the safe area (`react-native-safe-area-context`), keyboard avoidance, the capped centred column on tablets (forms 400, content 600), the toast host, and a `canLeave` flag that blocks the back gesture and the header back button while a submit is in flight (the router's prevent-remove hook, never a hand-rolled `BackHandler` in a feature).
-- Lists are `FlashList` with stable `keyExtractor`, memoised items and no inline `renderItem` closures that capture changing state; animation is Reanimated; images are `expo-image`.
+- Lists are `FlashList` with stable `keyExtractor`, memoised items and no inline `renderItem` closures that capture changing state, because such a closure re-renders every visible row on each state change; animation is Reanimated; images are `expo-image`.
 - Every pressable has an `accessibilityRole` and label and a 44pt minimum target; a change is checked in dark mode and with the platform's larger text setting.
 - **Platform-appropriate, not platform-identical.** Material on Android and Human Interface Guidelines on iOS for navigation gestures, back behaviour, pickers and alerts; `Platform.select` only in `shared/ui`, never in a feature.
 
@@ -88,7 +88,7 @@ Enforced by `eslint-plugin-boundaries` (or `dependency-cruiser`) once the repo o
 
 ## 8. Every outside dependency has a fake
 
-- `tests/support/msw/` holds MSW handlers for every call in a feature's `lib/`, seeded with demo data, used by component and screen tests and by the `demo` app variant (`EXPO_PUBLIC_BACKEND=in-memory`) that Maestro and reviewers run. The handlers are validated in CI against the backend's published response contract (`contracts:sync`/`contracts:check`, as the web app does); a handler that only agrees with itself proves nothing.
+- `tests/support/msw/` holds MSW handlers for every call in a feature's `lib/`, seeded with demo data, used by component and screen tests and by the `demo` app variant (`EXPO_PUBLIC_BACKEND=in-memory`) that Maestro and reviewers run. CI validates them against the backend's published response contract, because a handler that only agrees with itself proves nothing. The mechanics are in `references/testing.md`.
 
 ## 9. Tests and checks
 
@@ -103,11 +103,12 @@ tests/
   config.yaml
 ```
 
-- **Component tests** assert what the user sees and does (role, text from the dictionary, disabled state), never internals; `jest.useFakeTimers()` only when a test needs them.
-- **Maestro is the e2e tier**, on both platforms: every flow runs on an iOS simulator and an Android emulator against the development build with the in-memory backend, in every shipped locale (launch with `--env LOCALE=es` read by the app's dev settings, and assert on the dictionary's strings). Spinners never settle on their own: `extendedWaitUntil` on a `testID`, never a fixed `sleep`.
-- **Screenshots come from the flows**: `takeScreenshot: <screen>-<platform>-<locale>` at a phone and a tablet on each platform (iPhone and iPad, a phone and a tablet AVD), light and dark. They are the screenshots the UI rule asks for; the fallback is `xcrun simctl io booted screenshot` / `adb exec-out screencap` against the demo variant.
-- **Lint, types and size:** `tsc --noEmit`, ESLint with `eslint-config-expo`, `unicorn/filename-case`, `eslint-plugin-boundaries`, `max-lines` (300) and `max-lines-per-function` (40), with a baseline that may only shrink; never a disable comment to get past them.
-- **CI tiers.** Fast, on every PR, on a Linux runner: lint, typecheck, Jest, `expo-doctor`, the contract check, and `npx expo export` to prove the bundle builds. Full, on a `v*` tag, the weekly run and manual runs: an EAS build per platform (or a local prebuild on the runner) and every Maestro flow, Android on a Linux runner with KVM, iOS on a macOS runner, which bills at ten times the Linux rate and is why iOS flows stay out of the PR tier; it opens an issue when red.
+- **Unit and component tests** (Jest, React Native Testing Library) assert what the user sees and does, never internals, with every call answered by MSW so the real `lib/` parsing runs.
+- **Maestro is the e2e tier**, because only it drives the real build: every flow on an iOS simulator and an Android emulator, with the in-memory backend, in every shipped locale; it also takes the PR screenshots.
+- **Lint, types and size** (`tsc`, ESLint with boundaries, filename case, `max-lines` 300, `max-lines-per-function` 40) with a baseline that may only shrink; never a disable comment.
+- **CI:** the PR tier runs lint, typecheck, Jest, `expo-doctor`, the contract check and `npx expo export`; Maestro runs only on tags, weekly and manually.
+
+Read `references/testing.md` before writing or changing tests, MSW handlers or Maestro flows, setting up CI, or taking the PR screenshots.
 
 Before reporting work done: lint, typecheck, Jest, the Maestro flows the change touches on both platforms (on a PR, CI runs none), `expo-doctor`, `npx expo export`, and screenshots on iOS and Android at a phone and a tablet, light and dark, for every state and locale the change touches.
 

@@ -8,12 +8,12 @@ Each skill in `skills/` carries `evals/evals.json` in skill-creator's schema (pr
 2. Build its inputs as the eval's `sandbox` says:
    - architecture skills: create `<work>` and copy `evals/files/*` into `<work>/files/` (the prompts say `files/review.diff`);
    - `open-pr`, `resolve-pr-comments`: run the `setup` command with a `<work>` path that does not exist yet; `setup.sh` creates it, refuses an existing one, and is never shown to the agent, since it spells out the planted answers;
-   - `retro`: copy the eval's files into `<work>/`, then `mkdir -p <work>/config-repo && git archive origin/main ':(exclude)skills/*/evals' | tar -x -C <work>/config-repo`. The exclude keeps every eval's expectations, this one's included, out of the agent's reach.
+   - `retro`: copy the eval's files into `<work>/`, keeping each path below its session folder (`session-unwired/web-app/package.json` lands at `<work>/web-app/package.json`) and copying the files the eval lists one by one, since a glob misses `.githooks/` and `.github/`, then `mkdir -p <work>/config-repo && git archive origin/main ':(exclude)skills/*/evals' | tar -x -C <work>/config-repo`. The exclude keeps every eval's expectations, this one's included, out of the agent's reach.
 3. Put the sandbox's rules in the run's prompt: the work directory, that `gh` and `/code-review` are not available and stand in through `gh-fixtures/` or `open-issues.json`, and that the final message lists every command it would have run. Nothing else stops a run from calling the real `gh`.
 
 ## Comparing versions
 
-Run every prompt twice in the same turn: with the skill (the agent reads the `SKILL.md` under test), and without (no skill and no `SKILL.md` read). When improving a skill, snapshot it first and use the snapshot as the baseline. The architecture skills ran on Sonnet, because the implementation agents that load them do; the process skills ran on the session's model.
+Run every prompt twice in the same turn: with the skill (the agent reads the `SKILL.md` under test and only the `references/` files its pointers send it to, so a run also tests whether those pointers are followed), and without (no skill and no `SKILL.md` read). When improving a skill, snapshot it first and use the snapshot as the baseline (`old_skill`), so the comparison measures the edit rather than the skill. The architecture skills ran on Sonnet, because the implementation agents that load them do; the process skills ran on the session's model.
 
 Subagents may not write report files: save each run's final message as `outputs/report.md` (or `review.md`) yourself, then grade every expectation with quoted evidence, aggregate with skill-creator's `aggregate_benchmark` (it expects `eval-*/<config>/run-*/grading.json`), and open `eval-viewer/generate_review.py --static <file>`. On Windows set `PYTHONUTF8=1` for the viewer.
 

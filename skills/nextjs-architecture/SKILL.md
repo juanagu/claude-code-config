@@ -27,8 +27,8 @@ src/
 
 - File names are kebab-case (`login-form.tsx` exports `LoginForm`, `use-session-refresh.ts` exports `useSessionRefresh`, and Astro components alike: `site-header.astro`); Next's reserved files (`page.tsx`, `layout.tsx`, `route.ts`) and `feature_readme.md` keep their names. ESLint enforces it with `unicorn/filename-case` (`kebabCase`).
 - App Router, TypeScript strict. Server Components by default; `"use client"` only where interactivity or state requires it.
-- **Components never fetch.** Server reads live in the feature's `lib/` behind `server-only` narrow functions; mutations in server actions or the feature's `lib/` client; pages and components call those.
-- A feature owns its calls to the backend as narrow functions in its own `lib/`; `shared/lib` holds only the transport and the error envelope. No interface/adapter pair per fetch: on the frontend the narrow module is the port.
+- **Components never fetch**, so each feature touches the backend contract in one place and components test without a network. Server reads live in the feature's `lib/` as narrow functions marked `server-only`, which makes an accidental import into a client bundle (with its cookies or secrets) a build error; mutations go in the feature's own server actions or its `lib/` client; pages and components call those.
+- A feature owns its calls to the backend as narrow functions in its own `lib/`; `shared/lib` holds only the transport and the error envelope. No interface/adapter pair per fetch: on the frontend the feature's narrow `lib/` module is the port.
 - A feature imports another only through the exports its `feature_readme.md` lists as its exposed interface (e.g. `auth/lib/routes.ts` for every auth href). `shared/` never imports a feature.
 - Validate all external input (forms, search params, API responses) at the boundary.
 - Business logic lives outside components (hooks, `lib/`); a component over ~200 lines, or one that both decides and renders, splits into a hook and presentational pieces.
@@ -50,17 +50,14 @@ src/
 
 ## 4. i18n
 
-- All UI copy comes from `src/i18n/{en,es}.ts` dictionaries typed by one `Dictionary` interface; the locale is a cookie negotiated from `Accept-Language` in the proxy. No hard-coded strings in components.
+- All UI copy comes from `src/i18n/{en,es}.ts` dictionaries typed by one `Dictionary` interface, and every new string goes into both: the shared type makes a key missing in either locale a typecheck error, while a hard-coded string ships untranslated unnoticed. The locale is a cookie negotiated from `Accept-Language` in the proxy.
 - Every locale the project ships is verified on screen, not only the default.
 
 ## 5. Astro static and marketing sites
 
-- `output: 'static'` by default; needing per-request SSR is a hint the project belongs on Next.js.
-- Tailwind v4 with tokens in `@theme`; components organized by section (hero, features, footer), not by type.
-- i18n via one content dictionary per locale implementing a shared interface; path-based locales (`/en`, `/es`) when pages must be crawlable per language.
-- Images through `astro:assets`, not raw `<img>`.
-- `client:*` islands only where a component truly needs JS (language switcher, copy button, live badge).
-- Landing pages are designed desktop-led (1280 first), then 390 as its own adaptation; the CSS is still written base-up.
+Static output by default, `client:*` islands only where a component needs JS, and landing pages designed desktop-led (1280 first, then 390 as its own adaptation). §3 (design system) applies, with the CSS still written base-up; §6 applies where the site has the pieces it names (a static site with no backend needs no fake backend or contract check); i18n takes the Astro form in the reference (one content dictionary per locale, path-based locales), because static output has no proxy to negotiate a cookie.
+
+Read `references/astro.md` before writing or reviewing code in an Astro project.
 
 ## 6. Tests and checks
 
@@ -84,7 +81,7 @@ Before reporting work done: lint, typecheck, unit tests, the e2e specs the chang
 | A component calling `fetch` | A `server-only` function in the feature's `lib/`, called from the page |
 | One `apiClient` with every backend operation injected everywhere | Narrow functions per feature in its `lib/`; `shared/lib` only transports |
 | Auth header or nav in the root layout | `app/(app)/layout.tsx` |
-| `router.refresh()` before `router.push()` | Push first, refresh after |
+| `router.refresh()` before `router.push()` | Push first, refresh after: the navigation discards a pending refresh |
 | Variant class string copied into a second file | Extract the primitive into `src/shared/ui/` |
 | `LoginForm.tsx`, `authCookies.ts`: file named after its symbol | `login-form.tsx`, `auth-cookies.ts`; the export keeps its name |
 | A Playwright spec asserting on a `lib/` function's return value | A vitest unit test |
@@ -93,11 +90,11 @@ Before reporting work done: lint, typecheck, unit tests, the e2e specs the chang
 
 ## Checklist for a review brief
 
-1. Components never fetch; reads and mutations sit in the feature's `lib/`.
+1. Components never fetch; reads (`server-only`) and mutations sit in the feature's `lib/`.
 2. Cross-feature imports only through each feature's exposed interface; `shared/` imports no feature.
 3. Chrome that depends on route or session lives in a route-group layout.
 4. No raw hex or px; primitives composed, none hand-rolled; mobile-first CSS.
-5. Every string comes from the dictionaries; every shipped locale verified.
+5. Every string comes from both dictionaries; every shipped locale verified.
 6. Unit tests in vitest, e2e in both Playwright projects, the fake backend validated against the real schema.
 7. Files ~300 lines, functions ~40, components ~200.
 8. File names kebab-case, framework-reserved names excepted; `unicorn/filename-case` green.

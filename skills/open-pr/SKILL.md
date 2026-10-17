@@ -1,6 +1,6 @@
 ---
 name: "open-pr"
-description: "Opens a pull request following this user's trunk-based-with-PR-gate workflow: verifies the branch is short-lived and off trunk, runs local checks, pushes, runs the /code-review passes, writes a structured PR description, and creates it via gh. Trigger when the user asks to open/create a PR, put up a PR, or ship a branch for review. Do not trigger for reviewing an existing PR (use code-review) or for resolving review feedback (use resolve-pr-comments)."
+description: "Opens a pull request the way this setup's trunk-based PR gate expects: checks the branch is off trunk and small, runs the local checks and the e2e specs the change touches, pushes, runs the review loop before the PR exists, writes a Summary/Changes/Testing description from the diff, and creates it with gh, ready for review. Use this whenever a branch is meant to go up for review, even if the user never says \"PR\": \"put up a PR\", \"ship this\", \"send it for review\", \"this branch is done\", \"open a pull request for #42\", or a pipeline reaching its PR step. Not for reviewing an existing PR (code-review) or answering its review comments (resolve-pr-comments)."
 ---
 
 # Open PR

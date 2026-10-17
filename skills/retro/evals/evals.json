@@ -1,6 +1,6 @@
 {
   "skill_name": "retro",
-  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner copies each eval's files into the agent's work dir and adds config-repo/, a read-only snapshot of this repo's trunk without any skill's evals, which hold this eval's answers (`mkdir -p <work>/config-repo && git archive origin/main ':(exclude)skills/*/evals' | tar -x -C <work>/config-repo`). The session log stands in for the conversation and open-issues.json for `gh issue list`. The agent edits nothing in config-repo/ and gives, in its final message, the full text of each issue it would open and each comment it would post, then its message to the user.",
+  "sandbox": "Run as docs/skill-evals.md describes: skill-creator ignores this field. The runner copies each eval's files into the agent's work dir, keeping each file's path below its session folder (session-unwired/web-app/package.json lands at <work>/web-app/package.json), and adds config-repo/, a read-only snapshot of this repo's trunk without any skill's evals, which hold this eval's answers (`mkdir -p <work>/config-repo && git archive origin/main ':(exclude)skills/*/evals' | tar -x -C <work>/config-repo`). The session log stands in for the conversation and open-issues.json for `gh issue list`. The agent edits nothing in config-repo/ and gives, in its final message, the full text of each issue it would open and each comment it would post, then its message to the user.",
   "evals": [
     {
       "id": 1,
@@ -37,6 +37,30 @@
         "Does not treat the `npm run tset` typo as worth fixing",
         "Says plainly that nothing slipped that is worth filing",
         "Made no edits under config-repo/"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "existing-check-not-wired",
+      "files": [
+        "evals/files/session-unwired/session-log.md",
+        "evals/files/session-unwired/open-issues.json",
+        "evals/files/session-unwired/web-app/package.json",
+        "evals/files/session-unwired/web-app/.githooks/pre-push",
+        "evals/files/session-unwired/web-app/.github/workflows/ci.yml",
+        "evals/files/session-unwired/web-app/docs/DEVELOPMENT.md"
+      ],
+      "prompt": "CI caught the raw hex on the theme toggle and then I lost half an hour hunting for the fake bff. Retro please, the log is in session-log.md and web-app/ has the repo files.",
+      "expected_output": "Finds that check:tokens already exists and runs in CI but not in the pre-push hook, classifies it as check not run, and proposes adding it to web-app's .githooks/pre-push (an issue in acme/web-app), not a new rule; classifies the fake-bff search as navigation and proposes a one-line pointer in web-app's docs/DEVELOPMENT.md; adds nothing to the global CLAUDE.md and edits nothing.",
+      "expectations": [
+        "Classifies the raw-hex slip as 'check not run' (the check exists but the pre-push hook does not run it), not as 'no rule'",
+        "Proposes adding `npm run check:tokens` to web-app's .githooks/pre-push, rather than a new lint rule or a prose rule",
+        "Files the pre-push fix against acme/web-app, not the config repo",
+        "Classifies the 25-minute search for the fake bff as navigation",
+        "Proposes a one-line pointer to tests/support/fake-bff-server.mjs in web-app's docs (DEVELOPMENT.md or the repo's CLAUDE.md)",
+        "Proposes no new sentence for the global CLAUDE.md",
+        "Each issue title names the fix, not the incident",
+        "Made no edits under config-repo/ or web-app/"
       ]
     }
   ]
